@@ -1,6 +1,7 @@
 package gobackend
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -177,6 +178,45 @@ func TestBuildOutputPathForExtensionUsesTempDirForFDOutput(t *testing.T) {
 	}
 	if !isPathInAllowedDirs(resolved) {
 		t.Fatalf("expected resolved output path %q to be allowed", resolved)
+	}
+}
+
+func TestShouldStopProviderFallback(t *testing.T) {
+	if shouldStopProviderFallback(nil) {
+		t.Fatal("nil availability should not stop fallback")
+	}
+	if shouldStopProviderFallback(&ExtAvailabilityResult{Available: false}) {
+		t.Fatal("availability without skip_fallback should not stop fallback")
+	}
+	if !shouldStopProviderFallback(&ExtAvailabilityResult{Available: false, SkipFallback: true}) {
+		t.Fatal("skip_fallback availability should stop fallback")
+	}
+}
+
+func TestBuildExtensionFallbackStoppedResponsePrefersAvailabilityReason(t *testing.T) {
+	resp := buildExtensionFallbackStoppedResponse("soundcloud", &ExtAvailabilityResult{
+		Reason:       "direct SoundCloud track ID",
+		SkipFallback: true,
+	}, errors.New("ignored"))
+
+	if resp.Service != "soundcloud" {
+		t.Fatalf("service = %q", resp.Service)
+	}
+	if resp.Error != "Fallback stopped by soundcloud: direct SoundCloud track ID" {
+		t.Fatalf("unexpected error message: %q", resp.Error)
+	}
+	if resp.ErrorType != "extension_error" {
+		t.Fatalf("error type = %q", resp.ErrorType)
+	}
+}
+
+func TestBuildExtensionFallbackStoppedResponseFallsBackToError(t *testing.T) {
+	resp := buildExtensionFallbackStoppedResponse("soundcloud", &ExtAvailabilityResult{
+		SkipFallback: true,
+	}, errors.New("lookup failed"))
+
+	if resp.Error != "Fallback stopped by soundcloud: lookup failed" {
+		t.Fatalf("unexpected error message: %q", resp.Error)
 	}
 }
 
