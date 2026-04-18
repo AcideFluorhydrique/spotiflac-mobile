@@ -108,21 +108,7 @@ type builtInProviderSpec struct {
 	Download         func(req DownloadRequest) (DownloadResult, error)                              `json:"-"`
 }
 
-var builtInProviderRegistry = []builtInProviderSpec{
-	{
-		ID:               "qobuz",
-		DisplayName:      "Qobuz",
-		SupportsMetadata: true,
-		SupportsDownload: true,
-		SupportsSearch:   true,
-		GetMetadata:      GetQobuzMetadata,
-		SearchAll:        SearchQobuzAll,
-		SearchTracks: func(query string, limit int) ([]ExtTrackMetadata, error) {
-			return NewQobuzDownloader().SearchTracks(query, limit)
-		},
-		Download: downloadWithBuiltInQobuz,
-	},
-}
+var builtInProviderRegistry = []builtInProviderSpec{}
 
 func getBuiltInProviderSpecs() []builtInProviderSpec {
 	specs := make([]builtInProviderSpec, len(builtInProviderRegistry))
@@ -1224,7 +1210,7 @@ func sanitizeDownloadProviderPriority(providerIDs []string) []string {
 		}
 
 		normalizedBuiltIn := strings.ToLower(providerID)
-		if normalizedBuiltIn == "deezer" {
+		if isRetiredBuiltInDownloadProvider(normalizedBuiltIn) {
 			continue
 		}
 		if isBuiltInDownloadProvider(normalizedBuiltIn) {
@@ -1240,6 +1226,38 @@ func sanitizeDownloadProviderPriority(providerIDs []string) []string {
 	}
 
 	return sanitized
+}
+
+func isRetiredBuiltInDownloadProvider(providerID string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(providerID))
+	if normalized == "" {
+		return false
+	}
+	if isBuiltInDownloadProvider(normalized) {
+		return false
+	}
+	switch normalized {
+	case "deezer", "qobuz", "tidal":
+		return true
+	default:
+		return false
+	}
+}
+
+func isRetiredBuiltInMetadataProvider(providerID string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(providerID))
+	if normalized == "" {
+		return false
+	}
+	if isBuiltInMetadataProvider(normalized) {
+		return false
+	}
+	switch normalized {
+	case "spotify", "qobuz", "tidal":
+		return true
+	default:
+		return false
+	}
 }
 
 func SetExtensionFallbackProviderIDs(providerIDs []string) {
@@ -1309,7 +1327,7 @@ func SetMetadataProviderPriority(providerIDs []string) {
 	seen := map[string]struct{}{}
 	for _, providerID := range providerIDs {
 		providerID = strings.TrimSpace(providerID)
-		if providerID == "" || providerID == "spotify" {
+		if providerID == "" || isRetiredBuiltInMetadataProvider(providerID) {
 			continue
 		}
 		if _, exists := seen[providerID]; exists {

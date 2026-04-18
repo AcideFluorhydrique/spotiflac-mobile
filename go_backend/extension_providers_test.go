@@ -7,28 +7,22 @@ import (
 	"testing"
 )
 
-func TestSetMetadataProviderPriorityPreservesExplicitProvidersOnly(t *testing.T) {
+func TestSetMetadataProviderPriorityStripsRetiredBuiltIns(t *testing.T) {
 	original := GetMetadataProviderPriority()
 	defer SetMetadataProviderPriority(original)
 
 	SetMetadataProviderPriority([]string{"qobuz"})
 	got := GetMetadataProviderPriority()
-	want := []string{"qobuz"}
-	if len(got) != len(want) {
-		t.Fatalf("unexpected priority length: got %v want %v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("unexpected priority at %d: got %v want %v", i, got, want)
-		}
+	if len(got) != 0 {
+		t.Fatalf("expected retired built-in qobuz to be stripped, got %v", got)
 	}
 }
 
-func TestSetExtensionFallbackProviderIDsSkipsBuiltInsAndDuplicates(t *testing.T) {
+func TestSetExtensionFallbackProviderIDsDedupesExtensions(t *testing.T) {
 	original := GetExtensionFallbackProviderIDs()
 	defer SetExtensionFallbackProviderIDs(original)
 
-	SetExtensionFallbackProviderIDs([]string{"ext-a", "qobuz", "ext-a", " ext-b "})
+	SetExtensionFallbackProviderIDs([]string{"ext-a", "ext-a", " ext-b "})
 
 	got := GetExtensionFallbackProviderIDs()
 	want := []string{"ext-a", "ext-b"}
@@ -50,9 +44,6 @@ func TestIsExtensionFallbackAllowedDefaultsToAllExtensions(t *testing.T) {
 
 	if !isExtensionFallbackAllowed("custom-ext") {
 		t.Fatal("expected custom extension to be allowed when no fallback allowlist is configured")
-	}
-	if !isExtensionFallbackAllowed("qobuz") {
-		t.Fatal("expected built-in provider to remain allowed")
 	}
 }
 
@@ -80,7 +71,7 @@ func TestSetProviderPriorityRemovesRetiredDeezerDownloader(t *testing.T) {
 	SetProviderPriority([]string{"deezer", "qobuz", "custom-ext"})
 
 	got := GetProviderPriority()
-	want := []string{"qobuz", "custom-ext"}
+	want := []string{"custom-ext"}
 	if len(got) != len(want) {
 		t.Fatalf("unexpected priority length: got %v want %v", got, want)
 	}
@@ -247,7 +238,7 @@ func TestCanEmbedGenreLabelRequiresExistingAbsoluteLocalFile(t *testing.T) {
 	}
 }
 
-func TestSearchTracksWithMetadataProvidersUsesPriorityAndDedupes(t *testing.T) {
+func TestSearchTracksWithMetadataProvidersIgnoresRetiredBuiltIns(t *testing.T) {
 	originalPriority := GetMetadataProviderPriority()
 	originalSearch := searchBuiltInMetadataTracksFunc
 	defer func() {
@@ -260,16 +251,7 @@ func TestSearchTracksWithMetadataProvidersUsesPriorityAndDedupes(t *testing.T) {
 	var calls []string
 	searchBuiltInMetadataTracksFunc = func(providerID, query string, limit int) ([]ExtTrackMetadata, error) {
 		calls = append(calls, providerID)
-		switch providerID {
-		case "qobuz":
-			return []ExtTrackMetadata{
-				{ProviderID: "qobuz", SpotifyID: "qobuz:1", ISRC: "AAA111", Name: "First"},
-				{ProviderID: "qobuz", SpotifyID: "qobuz:2", ISRC: "AAA111", Name: "Duplicate"},
-				{ProviderID: "qobuz", SpotifyID: "qobuz:3", ISRC: "BBB222", Name: "Second"},
-			}, nil
-		default:
-			return nil, nil
-		}
+		return nil, nil
 	}
 
 	manager := getExtensionManager()
@@ -277,13 +259,10 @@ func TestSearchTracksWithMetadataProvidersUsesPriorityAndDedupes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SearchTracksWithMetadataProviders returned error: %v", err)
 	}
-	if len(tracks) != 2 {
-		t.Fatalf("unexpected track count: got %d want 2", len(tracks))
+	if len(tracks) != 0 {
+		t.Fatalf("expected no tracks from retired built-in provider, got %+v", tracks)
 	}
-	if tracks[0].ProviderID != "qobuz" || tracks[1].ProviderID != "qobuz" {
-		t.Fatalf("unexpected track provider order: %+v", tracks)
-	}
-	if len(calls) != 1 || calls[0] != "qobuz" {
-		t.Fatalf("unexpected provider call order: %v", calls)
+	if len(calls) != 0 {
+		t.Fatalf("expected retired built-in provider not to be queried, got %v", calls)
 	}
 }

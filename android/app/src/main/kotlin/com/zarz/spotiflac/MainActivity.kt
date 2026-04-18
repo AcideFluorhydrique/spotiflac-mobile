@@ -2889,14 +2889,6 @@ class MainActivity: FlutterFragmentActivity() {
                             }
                             result.success(response)
                         }
-                        "getQobuzMetadata" -> {
-                            val resourceType = call.argument<String>("resource_type") ?: ""
-                            val resourceId = call.argument<String>("resource_id") ?: ""
-                            val response = withContext(Dispatchers.IO) {
-                                Gobackend.getQobuzMetadata(resourceType, resourceId)
-                            }
-                            result.success(response)
-                        }
                         "getProviderMetadata" -> {
                             val providerId = call.argument<String>("provider_id") ?: ""
                             val resourceType = call.argument<String>("resource_type") ?: ""

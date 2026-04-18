@@ -524,22 +524,6 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  static Future<Map<String, dynamic>> getQobuzMetadata(
-    String resourceType,
-    String resourceId,
-  ) async {
-    final result = await _channel.invokeMethod('getQobuzMetadata', {
-      'resource_type': resourceType,
-      'resource_id': resourceId,
-    });
-    if (result == null) {
-      throw Exception(
-        'getQobuzMetadata returned null for $resourceType:$resourceId',
-      );
-    }
-    return jsonDecode(result as String) as Map<String, dynamic>;
-  }
-
   static Future<Map<String, dynamic>> parseProviderUrl(String url) async {
     final result = await _channel.invokeMethod('parseProviderUrl', {
       'url': url,

@@ -758,6 +758,7 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
       state = state.copyWith(extensions: extensions);
       await _reconcileDownloadProviderPriority();
       await _reconcileDefaultDownloadService();
+      await _reconcileMetadataProviderPriority();
       _reconcileSearchProvider();
       _log.d('Loaded ${extensions.length} extensions');
 
@@ -866,6 +867,7 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
       state = state.copyWith(extensions: extensions);
       await _reconcileDownloadProviderPriority();
       await _reconcileDefaultDownloadService();
+      await _reconcileMetadataProviderPriority();
       _reconcileSearchProvider();
 
       if (!enabled && ext != null) {
@@ -914,6 +916,28 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     _log.d('Reconciled provider priority after extension update: $sanitized');
   }
 
+  Future<void> _reconcileMetadataProviderPriority() async {
+    if (state.metadataProviderPriority.isEmpty) {
+      return;
+    }
+
+    final replaced = _replaceRetiredBuiltInMetadataProviders(
+      state.metadataProviderPriority,
+    );
+    final sanitized = _sanitizeMetadataProviderPriority(replaced);
+    if (jsonEncode(sanitized) == jsonEncode(state.metadataProviderPriority)) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_metadataProviderPriorityKey, jsonEncode(sanitized));
+    await PlatformBridge.setMetadataProviderPriority(sanitized);
+    state = state.copyWith(metadataProviderPriority: sanitized);
+    _log.d(
+      'Reconciled metadata provider priority after extension update: $sanitized',
+    );
+  }
+
   String? _firstEnabledExtensionDownloadProviderId() {
     return state.extensions
         .where((ext) => ext.enabled && ext.hasDownloadProvider)
@@ -945,6 +969,21 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
           (ext) =>
               ext.enabled &&
               ext.hasCustomSearch &&
+              ext.replacesBuiltInProviders.contains(normalized),
+        )
+        .map((ext) => ext.id)
+        .firstOrNull;
+  }
+
+  String? replacedBuiltInMetadataProviderFor(String providerId) {
+    final normalized = providerId.trim().toLowerCase();
+    if (normalized.isEmpty) return null;
+
+    return state.extensions
+        .where(
+          (ext) =>
+              ext.enabled &&
+              ext.hasMetadataProvider &&
               ext.replacesBuiltInProviders.contains(normalized),
         )
         .map((ext) => ext.id)
@@ -1204,7 +1243,9 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
       if (savedJson != null) {
         final saved = jsonDecode(savedJson) as List<dynamic>;
         priority = _sanitizeMetadataProviderPriority(
-          saved.map((e) => e as String).toList(),
+          _replaceRetiredBuiltInMetadataProviders(
+            saved.map((e) => e as String).toList(),
+          ),
         );
         _log.d('Loaded metadata provider priority from prefs: $priority');
         await prefs.setString(
@@ -1233,7 +1274,9 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
   Future<void> setMetadataProviderPriority(List<String> priority) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final sanitized = _sanitizeMetadataProviderPriority(priority);
+      final sanitized = _sanitizeMetadataProviderPriority(
+        _replaceRetiredBuiltInMetadataProviders(priority),
+      );
       await prefs.setString(
         _metadataProviderPriorityKey,
         jsonEncode(sanitized),
@@ -1292,6 +1335,18 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
       ...builtInMetadataProviderIds,
       ...otherMetadataExtensions,
     ];
+  }
+
+  List<String> _replaceRetiredBuiltInMetadataProviders(List<String> input) {
+    final result = <String>[];
+    for (final provider in input) {
+      final replacement = replacedBuiltInMetadataProviderFor(provider);
+      final resolved = replacement ?? provider;
+      if (!result.contains(resolved)) {
+        result.add(resolved);
+      }
+    }
+    return result;
   }
 
   List<String> _sanitizeMetadataProviderPriority(List<String> input) {

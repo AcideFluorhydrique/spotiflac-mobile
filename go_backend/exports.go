@@ -2358,7 +2358,6 @@ func ParseProviderURLJSON(url string) (string, error) {
 		parse      func(string) (string, string, error)
 	}{
 		{providerID: "deezer", parse: parseDeezerURL},
-		{providerID: "qobuz", parse: parseQobuzURL},
 	}
 
 	for _, parser := range parsers {

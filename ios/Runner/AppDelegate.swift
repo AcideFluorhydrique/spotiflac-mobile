@@ -448,14 +448,6 @@ import Gobackend  // Import Go framework
             if let error = error { throw error }
             return response
 
-        case "getQobuzMetadata":
-            let args = call.arguments as! [String: Any]
-            let resourceType = args["resource_type"] as! String
-            let resourceId = args["resource_id"] as! String
-            let response = GobackendGetQobuzMetadata(resourceType, resourceId, &error)
-            if let error = error { throw error }
-            return response
-
         case "getProviderMetadata":
             let args = call.arguments as! [String: Any]
             let providerId = args["provider_id"] as! String
