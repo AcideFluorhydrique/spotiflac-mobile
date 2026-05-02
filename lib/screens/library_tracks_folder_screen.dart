@@ -574,7 +574,7 @@ class _LibraryTracksFolderScreenState
     final playlistId = widget.playlistId;
     if (playlistId == null) return;
 
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.image,
       allowMultiple: false,
     );
@@ -1372,9 +1372,7 @@ class _CollectionTrackTile extends ConsumerWidget {
         );
         return;
       }
-      ref
-          .read(downloadQueueProvider.notifier)
-          .addToQueue(track, service);
+      ref.read(downloadQueueProvider.notifier).addToQueue(track, service);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.l10n.snackbarAddedToQueue(track.name))),
       );

@@ -605,7 +605,7 @@ class _FilesSettingsPageState extends ConsumerState<FilesSettingsPage> {
                 }
                 String? result;
                 try {
-                  result = await FilePicker.platform.getDirectoryPath();
+                  result = await FilePicker.getDirectoryPath();
                 } catch (e) {
                   if (ctx.mounted) {
                     ScaffoldMessenger.of(ctx).showSnackBar(

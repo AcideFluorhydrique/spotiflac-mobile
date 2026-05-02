@@ -357,7 +357,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
 
                 String? result;
                 try {
-                  result = await FilePicker.platform.getDirectoryPath();
+                  result = await FilePicker.getDirectoryPath();
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(

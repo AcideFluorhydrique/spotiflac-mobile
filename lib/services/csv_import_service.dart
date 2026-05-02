@@ -12,7 +12,7 @@ class CsvImportService {
     void Function(int current, int total)? onProgress,
   }) async {
     try {
-      final FilePickerResult? result = await FilePicker.platform.pickFiles(
+      final FilePickerResult? result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['csv'],
       );

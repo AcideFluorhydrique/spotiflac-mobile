@@ -121,7 +121,7 @@ class _LibrarySettingsPageState extends ConsumerState<LibrarySettingsPage> {
         final granted = await _requestStoragePermission();
         if (!granted) return;
       }
-      final result = await FilePicker.platform.getDirectoryPath();
+      final result = await FilePicker.getDirectoryPath();
       if (result != null) {
         if (Platform.isIOS) {
           final bookmark = await PlatformBridge.createIosBookmarkFromPath(

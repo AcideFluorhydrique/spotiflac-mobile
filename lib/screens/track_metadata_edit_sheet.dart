@@ -201,7 +201,7 @@ class _EditMetadataSheetState extends State<_EditMetadataSheet> {
 
   Future<void> _pickCoverImage() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.image,
         allowMultiple: false,
         withData: true,
