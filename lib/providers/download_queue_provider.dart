@@ -4520,15 +4520,22 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
 
     final rawItems = snapshot['items'];
-    if (rawItems is! List || rawItems.isEmpty) {
+    final rawItemIds = snapshot['item_ids'];
+    final snapshotIds = rawItems is List
+        ? rawItems
+              .whereType<Map<Object?, Object?>>()
+              .map((item) => item['item_id']?.toString() ?? '')
+              .where((id) => id.isNotEmpty)
+              .toSet()
+        : rawItemIds is List
+        ? rawItemIds
+              .map((id) => id?.toString() ?? '')
+              .where((id) => id.isNotEmpty)
+              .toSet()
+        : <String>{};
+    if (snapshotIds.isEmpty) {
       return false;
     }
-
-    final snapshotIds = rawItems
-        .whereType<Map<Object?, Object?>>()
-        .map((item) => item['item_id']?.toString() ?? '')
-        .where((id) => id.isNotEmpty)
-        .toSet();
     if (!restoredItems.any((item) => snapshotIds.contains(item.id))) {
       return false;
     }
@@ -4958,6 +4965,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       safFileName: safFileName ?? '',
       safOutputExt: safOutputExt,
       stageSafOutput: isSafMode,
+      deferSafPublish: isSafMode,
       requiresContainerConversion:
           outputExt == '.flac' &&
           _extensionRequiresNativeContainerConversion(item.service),
@@ -4984,13 +4992,23 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     AppSettings settings,
   ) async {
     final rawItems = snapshot['items'];
-    if (rawItems is! List) {
+    final rawDelta = snapshot['item_delta'];
+    final itemSnapshots = <Map<String, dynamic>>[];
+    if (rawItems is List) {
+      for (final rawItem in rawItems) {
+        if (rawItem is Map) {
+          itemSnapshots.add(Map<String, dynamic>.from(rawItem));
+        }
+      }
+    }
+    if (rawDelta is Map) {
+      itemSnapshots.add(Map<String, dynamic>.from(rawDelta));
+    }
+    if (itemSnapshots.isEmpty) {
       return;
     }
 
-    for (final rawItem in rawItems) {
-      if (rawItem is! Map) continue;
-      final itemSnapshot = Map<String, dynamic>.from(rawItem);
+    for (final itemSnapshot in itemSnapshots) {
       final itemId = itemSnapshot['item_id']?.toString() ?? '';
       if (itemId.isEmpty || reconciledIds.contains(itemId)) {
         continue;

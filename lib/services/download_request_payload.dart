@@ -44,6 +44,7 @@ class DownloadRequestPayload {
   final String safFileName;
   final String safOutputExt;
   final bool stageSafOutput;
+  final bool deferSafPublish;
   final bool requiresContainerConversion;
   final String songLinkRegion;
 
@@ -91,6 +92,7 @@ class DownloadRequestPayload {
     this.safFileName = '',
     this.safOutputExt = '',
     this.stageSafOutput = false,
+    this.deferSafPublish = false,
     this.requiresContainerConversion = false,
     this.songLinkRegion = 'US',
   });
@@ -140,6 +142,7 @@ class DownloadRequestPayload {
       'saf_file_name': safFileName,
       'saf_output_ext': safOutputExt,
       'stage_saf_output': stageSafOutput,
+      'defer_saf_publish': deferSafPublish,
       'requires_container_conversion': requiresContainerConversion,
       'songlink_region': songLinkRegion,
     };
@@ -193,6 +196,7 @@ class DownloadRequestPayload {
       safFileName: safFileName,
       safOutputExt: safOutputExt,
       stageSafOutput: stageSafOutput,
+      deferSafPublish: deferSafPublish,
       requiresContainerConversion: requiresContainerConversion,
       songLinkRegion: songLinkRegion,
     );

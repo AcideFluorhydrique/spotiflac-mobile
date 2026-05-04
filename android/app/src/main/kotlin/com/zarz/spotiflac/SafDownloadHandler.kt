@@ -2,6 +2,7 @@ package com.zarz.spotiflac
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.documentfile.provider.DocumentFile
 import org.json.JSONObject
 import java.io.File
@@ -27,15 +28,17 @@ object SafDownloadHandler {
         val outputExt = normalizeExt(req.optString("saf_output_ext", ""))
         val mimeType = mimeTypeForExt(outputExt)
         val fileName = buildSafFileName(req, outputExt)
-        val useStagedOutput = req.optBoolean("stage_saf_output", false)
+        val deferSafPublish = req.optBoolean("defer_saf_publish", false)
+        val useStagedOutput = req.optBoolean("stage_saf_output", false) && !deferSafPublish
         val stagedFileName = if (useStagedOutput) buildStagedSafFileName(fileName, outputExt) else fileName
+        val staleStagedFileName = buildStagedSafFileName(fileName, outputExt)
 
         val existingDir = findDocumentDir(context, treeUri, relativeDir)
         if (existingDir != null) {
             val existing = existingDir.findFile(fileName)
             if (existing != null && existing.isFile && existing.length() > 0) {
-                if (useStagedOutput) {
-                    existingDir.findFile(stagedFileName)?.delete()
+                if (useStagedOutput || deferSafPublish) {
+                    existingDir.findFile(staleStagedFileName)?.delete()
                 }
                 val obj = JSONObject()
                 obj.put("success", true)
@@ -49,6 +52,41 @@ object SafDownloadHandler {
 
         val targetDir = ensureDocumentDir(context, treeUri, relativeDir)
             ?: return errorJson("Failed to access SAF directory")
+
+        if (deferSafPublish) {
+            targetDir.findFile(staleStagedFileName)?.delete()
+            val workingExt = outputExt.ifBlank { ".tmp" }
+            val workingFile = File.createTempFile("native_saf_work_", workingExt, context.cacheDir)
+            Log.i("SpotiFLAC", "SAF deferred native output: target=$fileName working=${workingFile.name}")
+            return try {
+                req.put("output_path", workingFile.absolutePath)
+                req.put("output_ext", outputExt)
+                req.remove("output_fd")
+                val response = downloader(req.toString())
+                val respObj = JSONObject(response)
+                if (respObj.optBoolean("success", false)) {
+                    val reportedPath = respObj.optString("file_path", "").trim()
+                    if (reportedPath.isEmpty() || reportedPath.startsWith("/proc/self/fd/")) {
+                        respObj.put("file_path", workingFile.absolutePath)
+                    } else if (reportedPath != workingFile.absolutePath) {
+                        workingFile.delete()
+                    }
+                    respObj.put("file_name", respObj.optString("file_name", "").ifBlank { fileName })
+                    respObj.put("saf_deferred_publish", true)
+                    respObj.put("saf_final_file_name", fileName)
+                    respObj.put("saf_relative_dir", relativeDir)
+                    respObj.put("saf_tree_uri", treeUriStr)
+                    respObj.put("saf_output_ext", outputExt)
+                    respObj.put("saf_final_mime_type", mimeType)
+                } else {
+                    workingFile.delete()
+                }
+                respObj.toString()
+            } catch (e: Exception) {
+                workingFile.delete()
+                errorJson("SAF deferred download failed: ${e.message}")
+            }
+        }
 
         var document = createOrReuseDocumentFile(targetDir, mimeType, stagedFileName)
             ?: return errorJson("Failed to create SAF file")

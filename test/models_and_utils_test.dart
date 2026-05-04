@@ -375,6 +375,7 @@ void main() {
         'saf_file_name': 'Song.flac',
         'saf_output_ext': 'flac',
         'stage_saf_output': false,
+        'defer_saf_publish': false,
         'requires_container_conversion': false,
         'songlink_region': 'ID',
       });

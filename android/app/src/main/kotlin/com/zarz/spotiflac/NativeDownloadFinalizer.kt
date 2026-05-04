@@ -91,6 +91,8 @@ object NativeDownloadFinalizer {
         var quality: String,
         var bitDepth: Int?,
         var sampleRate: Int?,
+        var pendingExternalLrc: String? = null,
+        var pendingExternalLrcFileName: String? = null,
     )
 
     private data class ReplayGainScan(
@@ -152,6 +154,7 @@ object NativeDownloadFinalizer {
         )
 
         try {
+            var qualityMetadataRefreshed = false
             if (!result.optBoolean("already_exists", false)) {
                 checkCancelled(shouldCancel)
                 currentStatus("finalizing")
@@ -170,10 +173,18 @@ object NativeDownloadFinalizer {
                 val replayGain = writeReplayGain(context, effectiveInput, state, shouldCancel)
                 if (replayGain != null) result.put("replaygain", replayGain)
                 checkCancelled(shouldCancel)
-                promoteStagedSafOutputIfNeeded(context, effectiveInput, state)
+                if (isDeferredSafPublish(effectiveInput)) {
+                    refreshFinalAudioQualityMetadata(context, result, state)
+                    qualityMetadataRefreshed = true
+                    publishDeferredSafOutput(context, effectiveInput, state)
+                } else {
+                    promoteStagedSafOutputIfNeeded(context, effectiveInput, state)
+                }
             }
             checkCancelled(shouldCancel)
-            refreshFinalAudioQualityMetadata(context, result, state)
+            if (!qualityMetadataRefreshed) {
+                refreshFinalAudioQualityMetadata(context, result, state)
+            }
 
             val history = buildHistoryRow(effectiveInput, state)
             upsertHistory(context, history)
@@ -658,7 +669,17 @@ object NativeDownloadFinalizer {
         if (lyricsMode != "external" && lyricsMode != "both") return
         val lrc = resolveLyricsLrc(input)
         if (lrc.isBlank() || lrc == "[instrumental:true]") return
-        val baseName = state.fileName.replace(Regex("\\.[^.]+$"), "")
+        val audioFileName = if (isDeferredSafRequest(input)) {
+            desiredFileName(input, state, File(state.filePath).extension)
+        } else {
+            state.fileName
+        }
+        val baseName = audioFileName.replace(Regex("\\.[^.]+$"), "")
+        if (isDeferredSafRequest(input)) {
+            state.pendingExternalLrc = lrc
+            state.pendingExternalLrcFileName = "$baseName.lrc"
+            return
+        }
         if (state.filePath.startsWith("content://")) {
             val treeUri = input.request.optString("saf_tree_uri", "")
             val relativeDir = input.request.optString("saf_relative_dir", "")
@@ -1139,6 +1160,92 @@ object NativeDownloadFinalizer {
             replaceStatePath(context, input, state, localInput, deleteOld = true)
         } finally {
             File(localInput).delete()
+        }
+    }
+
+    private fun isDeferredSafPublish(input: FinalizeInput): Boolean {
+        return input.request.optBoolean("defer_saf_publish", false) &&
+            input.result.optBoolean("saf_deferred_publish", false)
+    }
+
+    private fun isDeferredSafRequest(input: FinalizeInput): Boolean {
+        return input.request.optString("storage_mode", "") == "saf" &&
+            input.request.optBoolean("defer_saf_publish", false)
+    }
+
+    private fun publishDeferredSafOutput(
+        context: Context,
+        input: FinalizeInput,
+        state: FinalizeState,
+    ) {
+        if (!isDeferredSafPublish(input)) return
+        if (state.filePath.startsWith("content://")) return
+
+        val outputFile = File(state.filePath)
+        if (!outputFile.exists() || outputFile.length() <= 0L) {
+            throw IllegalStateException("deferred SAF output missing or empty")
+        }
+
+        val finalName = desiredFileName(input, state, outputFile.extension)
+        val treeUri = input.result.optString("saf_tree_uri", "")
+            .ifBlank { input.request.optString("saf_tree_uri", "") }
+        val relativeDir = input.result.optString("saf_relative_dir", "")
+            .ifBlank { input.request.optString("saf_relative_dir", "") }
+        val mimeType = mimeTypeForExt(outputFile.extension)
+        val newUri = SafDownloadHandler.writeFileToSaf(
+            context = context,
+            treeUriStr = treeUri,
+            relativeDir = relativeDir,
+            fileName = finalName,
+            mimeType = mimeType,
+            srcPath = outputFile.absolutePath,
+        ) ?: throw IllegalStateException("failed to publish deferred SAF output")
+
+        Log.i(TAG, "Published deferred SAF output once: file=$finalName bytes=${outputFile.length()}")
+        outputFile.delete()
+        state.filePath = newUri
+        state.fileName = finalName
+        input.result.put("file_path", newUri)
+        input.result.put("file_name", finalName)
+        input.result.optJSONObject("replaygain")?.let { replayGain ->
+            replayGain.put("file_path", newUri)
+            replayGain.put("file_name", finalName)
+        }
+        input.result.put("saf_deferred_published", true)
+        publishPendingDeferredExternalLrc(context, input, state)
+    }
+
+    private fun publishPendingDeferredExternalLrc(
+        context: Context,
+        input: FinalizeInput,
+        state: FinalizeState,
+    ) {
+        val lrc = state.pendingExternalLrc ?: return
+        val fileName = state.pendingExternalLrcFileName ?: return
+        val treeUri = input.result.optString("saf_tree_uri", "")
+            .ifBlank { input.request.optString("saf_tree_uri", "") }
+        val relativeDir = input.result.optString("saf_relative_dir", "")
+            .ifBlank { input.request.optString("saf_relative_dir", "") }
+        val temp = File(context.cacheDir, "native_lrc_${System.nanoTime()}.lrc")
+        try {
+            temp.writeText(lrc)
+            val newUri = SafDownloadHandler.writeFileToSaf(
+                context = context,
+                treeUriStr = treeUri,
+                relativeDir = relativeDir,
+                fileName = fileName,
+                mimeType = "application/octet-stream",
+                srcPath = temp.absolutePath,
+            )
+            if (newUri == null) {
+                Log.w(TAG, "Failed to publish deferred external LRC: $fileName")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to publish deferred external LRC: ${e.message}")
+        } finally {
+            temp.delete()
+            state.pendingExternalLrc = null
+            state.pendingExternalLrcFileName = null
         }
     }
 

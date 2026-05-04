@@ -58,6 +58,7 @@ class DownloadService : Service() {
         const val EXTRA_REQUESTS_JSON = "requests_json"
         const val EXTRA_SETTINGS_JSON = "settings_json"
         private const val NATIVE_WORKER_STATE_FILE = "native_download_worker_state.json"
+        private const val NATIVE_WORKER_PROGRESS_FILE = "native_download_worker_progress.json"
         private const val NATIVE_REPLAYGAIN_JOURNAL_FILE = "native_replaygain_journal.json"
         private const val NATIVE_WORKER_CONTRACT_VERSION = NativeDownloadFinalizer.NATIVE_WORKER_CONTRACT_VERSION
         private val NATIVE_WORKER_STATE_FILE_LOCK = Any()
@@ -137,8 +138,8 @@ class DownloadService : Service() {
 
         fun getNativeWorkerSnapshot(context: Context): String {
             synchronized(NATIVE_WORKER_STATE_FILE_LOCK) {
-                val file = File(context.filesDir, NATIVE_WORKER_STATE_FILE)
-                if (!file.exists()) {
+                val stateFile = File(context.filesDir, NATIVE_WORKER_STATE_FILE)
+                if (!stateFile.exists()) {
                     return JSONObject()
                         .put("run_id", "")
                         .put("is_running", false)
@@ -150,10 +151,50 @@ class DownloadService : Service() {
                         .put("items", JSONArray())
                         .toString()
                 }
-                return AtomicFile(file).openRead().bufferedReader(Charsets.UTF_8).use {
+                val state = AtomicFile(stateFile).openRead().bufferedReader(Charsets.UTF_8).use {
                     it.readText()
+                }.let { JSONObject(it) }
+                val progressFile = File(context.filesDir, NATIVE_WORKER_PROGRESS_FILE)
+                if (progressFile.exists()) {
+                    try {
+                        val progress = AtomicFile(progressFile).openRead().bufferedReader(Charsets.UTF_8).use {
+                            it.readText()
+                        }.let { JSONObject(it) }
+                        if (progress.optString("run_id", "") == state.optString("run_id", "") &&
+                            progress.optLong("snapshot_serial", 0L) > state.optLong("snapshot_serial", 0L)
+                        ) {
+                            mergeNativeWorkerProgressSnapshot(state, progress)
+                        }
+                    } catch (_: Exception) {
+                    }
+                }
+                return state.toString()
+            }
+        }
+
+        private fun mergeNativeWorkerProgressSnapshot(state: JSONObject, progress: JSONObject) {
+            val dynamicKeys = listOf(
+                "is_running",
+                "is_paused",
+                "total",
+                "completed",
+                "failed",
+                "skipped",
+                "current_item_id",
+                "message",
+                "updated_at",
+                "snapshot_serial",
+                "item_ids"
+            )
+            for (key in dynamicKeys) {
+                if (progress.has(key)) {
+                    state.put(key, progress.get(key))
                 }
             }
+            if (progress.has("item_delta")) {
+                state.put("item_delta", progress.get("item_delta"))
+            }
+            state.put("snapshot_mode", "compact_with_delta")
         }
     }
     
@@ -178,6 +219,13 @@ class DownloadService : Service() {
         var resultJson: JSONObject? = null
     )
 
+    private data class NativeWorkerCounts(
+        val total: Int,
+        val completed: Int,
+        val failed: Int,
+        val skipped: Int
+    )
+
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var nativeWorkerJob: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
@@ -194,7 +242,8 @@ class DownloadService : Service() {
     private val nativeReplayGainRequestAlbumKeys = mutableMapOf<String, String>()
     private val snapshotWriteLock = Any()
     private val snapshotWriteSerial = AtomicLong(0L)
-    private var latestCommittedSnapshotSerial = 0L
+    private var latestCommittedStateSnapshotSerial = 0L
+    private var latestCommittedProgressSnapshotSerial = 0L
     @Volatile private var nativeWorkerPaused = false
     @Volatile private var nativeWorkerCancelRequested = false
     
@@ -210,7 +259,8 @@ class DownloadService : Service() {
                 isRunning = false,
                 isPaused = false,
                 currentItemId = "",
-                message = "Service restart ignored"
+                message = "Service restart ignored",
+                includeItems = true
             )
             stopForegroundService(cancelNativeWorker = false)
             return START_NOT_STICKY
@@ -260,7 +310,8 @@ class DownloadService : Service() {
                     isRunning = nativeWorkerJob?.isActive == true,
                     isPaused = true,
                     currentItemId = "",
-                    message = "Paused"
+                    message = "Paused",
+                    includeItems = true
                 )
             }
             ACTION_RESUME_NATIVE_QUEUE -> {
@@ -269,7 +320,8 @@ class DownloadService : Service() {
                     isRunning = nativeWorkerJob?.isActive == true,
                     isPaused = false,
                     currentItemId = "",
-                    message = "Resumed"
+                    message = "Resumed",
+                    includeItems = true
                 )
             }
             ACTION_CANCEL_NATIVE_QUEUE -> {
@@ -294,7 +346,8 @@ class DownloadService : Service() {
                     isRunning = false,
                     isPaused = false,
                     currentItemId = "",
-                    message = "Cancelled"
+                    message = "Cancelled",
+                    includeItems = true
                 )
             }
             ACTION_UPDATE_PROGRESS -> {
@@ -360,7 +413,8 @@ class DownloadService : Service() {
                 isPaused = false,
                 currentItemId = "",
                 message = "Invalid native queue payload: ${e.message}",
-                settingsJson = settingsJson
+                settingsJson = settingsJson,
+                includeItems = true
             )
             stopForegroundService(cancelNativeWorker = false)
             return
@@ -412,7 +466,8 @@ class DownloadService : Service() {
             isPaused = false,
             currentItemId = "",
             message = "Starting",
-            settingsJson = settingsJson
+            settingsJson = settingsJson,
+            includeItems = true
         )
 
         nativeWorkerJob = serviceScope.launch {
@@ -495,7 +550,8 @@ class DownloadService : Service() {
                         isPaused = true,
                         currentItemId = request.itemId,
                         message = "Paused",
-                        settingsJson = settingsJson
+                        settingsJson = settingsJson,
+                        includeItems = true
                     )
                     delay(500)
                 }
@@ -524,7 +580,8 @@ class DownloadService : Service() {
                     isPaused = false,
                     currentItemId = request.itemId,
                     message = "Downloading",
-                    settingsJson = settingsJson
+                    settingsJson = settingsJson,
+                    includeItems = true
                 )
 
                 var progressJob: Job? = null
@@ -606,7 +663,8 @@ class DownloadService : Service() {
                                 isPaused = true,
                                 currentItemId = request.itemId,
                                 message = "Paused",
-                                settingsJson = settingsJson
+                                settingsJson = settingsJson,
+                                includeItems = true
                             )
                             retryCurrentRequest = true
                         } else {
@@ -630,7 +688,8 @@ class DownloadService : Service() {
                             currentItemId = request.itemId,
                             message = if (result.optBoolean("success", false)) "Completed" else "Failed",
                             lastResult = result,
-                            settingsJson = settingsJson
+                            settingsJson = settingsJson,
+                            includeItems = true
                         )
                     }
                 } catch (e: CancellationException) {
@@ -653,7 +712,8 @@ class DownloadService : Service() {
                         isPaused = false,
                         currentItemId = request.itemId,
                         message = e.message ?: "Native download failed",
-                        settingsJson = settingsJson
+                        settingsJson = settingsJson,
+                        includeItems = true
                     )
                 } finally {
                     progressJob?.cancel()
@@ -680,7 +740,8 @@ class DownloadService : Service() {
                 isPaused = false,
                 currentItemId = "",
                 message = if (nativeWorkerCancelRequested) "Cancelled" else "Finished",
-                settingsJson = settingsJson
+                settingsJson = settingsJson,
+                includeItems = true
             )
             stopForegroundService(cancelNativeWorker = false)
         }
@@ -913,37 +974,41 @@ class DownloadService : Service() {
         message: String,
         lastResult: JSONObject? = null,
         settingsJson: String = "",
+        includeItems: Boolean = false,
         snapshotSerial: Long = snapshotWriteSerial.incrementAndGet()
     ) {
         try {
             synchronized(snapshotWriteLock) {
-                if (snapshotSerial < latestCommittedSnapshotSerial) return
-
-                val itemsSnapshot = nativeWorkerItemsSnapshot()
-                var completed = 0
-                var failed = 0
-                var skipped = 0
-                for (index in 0 until itemsSnapshot.length()) {
-                    when (itemsSnapshot.optJSONObject(index)?.optString("status")) {
-                        "completed" -> completed++
-                        "failed" -> failed++
-                        "skipped" -> skipped++
-                    }
+                if (includeItems) {
+                    if (snapshotSerial < latestCommittedStateSnapshotSerial) return
+                } else {
+                    if (snapshotSerial < latestCommittedProgressSnapshotSerial) return
                 }
+
+                val counts = nativeWorkerCounts()
                 val snapshot = JSONObject()
                     .put("contract_version", NATIVE_WORKER_CONTRACT_VERSION)
                     .put("run_id", nativeWorkerRunId.ifBlank { readNativeWorkerRunIdFromSnapshotFile() })
                     .put("is_running", isRunning)
                     .put("is_paused", isPaused)
-                    .put("total", itemsSnapshot.length())
-                    .put("completed", completed)
-                    .put("failed", failed)
-                    .put("skipped", skipped)
+                    .put("total", counts.total)
+                    .put("completed", counts.completed)
+                    .put("failed", counts.failed)
+                    .put("skipped", counts.skipped)
                     .put("current_item_id", currentItemId)
                     .put("message", message)
                     .put("updated_at", System.currentTimeMillis())
-                    .put("items", itemsSnapshot)
-                if (settingsJson.isNotBlank()) {
+                    .put("snapshot_serial", snapshotSerial)
+                    .put("item_ids", nativeWorkerItemIds())
+                    .put("snapshot_mode", if (includeItems) "compact_items" else "delta")
+                if (includeItems) {
+                    snapshot.put("items", nativeWorkerItemsSnapshot(includeStatic = false))
+                } else {
+                    nativeWorkerItemSnapshot(currentItemId, includeStatic = false)?.let {
+                        snapshot.put("item_delta", it)
+                    }
+                }
+                if (settingsJson.isNotBlank() && includeItems) {
                     snapshot.put("settings_json", settingsJson)
                 }
                 if (lastResult != null) {
@@ -951,14 +1016,23 @@ class DownloadService : Service() {
                 }
 
                 synchronized(NATIVE_WORKER_STATE_FILE_LOCK) {
-                    val file = AtomicFile(File(filesDir, NATIVE_WORKER_STATE_FILE))
+                    val targetFileName = if (includeItems) {
+                        NATIVE_WORKER_STATE_FILE
+                    } else {
+                        NATIVE_WORKER_PROGRESS_FILE
+                    }
+                    val file = AtomicFile(File(filesDir, targetFileName))
                     var stream: java.io.FileOutputStream? = null
                     try {
                         stream = file.startWrite()
                         stream.write(snapshot.toString().toByteArray(Charsets.UTF_8))
                         file.finishWrite(stream)
                         stream = null
-                        latestCommittedSnapshotSerial = snapshotSerial
+                        if (includeItems) {
+                            latestCommittedStateSnapshotSerial = snapshotSerial
+                        } else {
+                            latestCommittedProgressSnapshotSerial = snapshotSerial
+                        }
                     } finally {
                         if (stream != null) {
                             file.failWrite(stream)
@@ -977,7 +1051,8 @@ class DownloadService : Service() {
         currentItemId: String,
         message: String,
         lastResult: JSONObject? = null,
-        settingsJson: String = ""
+        settingsJson: String = "",
+        includeItems: Boolean = false
     ) {
         val snapshotSerial = snapshotWriteSerial.incrementAndGet()
         serviceScope.launch {
@@ -988,6 +1063,7 @@ class DownloadService : Service() {
                 message = message,
                 lastResult = lastResult,
                 settingsJson = settingsJson,
+                includeItems = includeItems,
                 snapshotSerial = snapshotSerial
             )
         }
@@ -1042,27 +1118,74 @@ class DownloadService : Service() {
         }
     }
 
-    private fun nativeWorkerItemsSnapshot(): JSONArray {
+    private fun nativeWorkerCounts(): NativeWorkerCounts {
+        var total = 0
+        var completed = 0
+        var failed = 0
+        var skipped = 0
+        synchronized(nativeWorkerItems) {
+            total = nativeWorkerItems.size
+            for (item in nativeWorkerItems) {
+                when (item.status) {
+                    "completed" -> completed++
+                    "failed" -> failed++
+                    "skipped" -> skipped++
+                }
+            }
+        }
+        return NativeWorkerCounts(
+            total = total,
+            completed = completed,
+            failed = failed,
+            skipped = skipped
+        )
+    }
+
+    private fun nativeWorkerItemSnapshot(itemId: String, includeStatic: Boolean): JSONObject? {
+        if (itemId.isBlank()) return null
+        synchronized(nativeWorkerItems) {
+            val item = nativeWorkerItems.firstOrNull { it.itemId == itemId } ?: return null
+            return nativeWorkerItemSnapshotLocked(item, includeStatic)
+        }
+    }
+
+    private fun nativeWorkerItemIds(): JSONArray {
         val array = JSONArray()
         synchronized(nativeWorkerItems) {
             for (item in nativeWorkerItems) {
-                val json = JSONObject()
-                    .put("item_id", item.itemId)
-                    .put("track_name", item.trackName)
-                    .put("artist_name", item.artistName)
-                    .put("item_json", item.itemJson)
-                    .put("status", item.status)
-                    .put("progress", item.progress)
-                    .put("bytes_received", item.bytesReceived)
-                    .put("bytes_total", item.bytesTotal)
-                if (item.error.isNotBlank()) {
-                    json.put("error", item.error)
-                }
-                item.resultJson?.let { json.put("result", it) }
-                array.put(json)
+                array.put(item.itemId)
             }
         }
         return array
+    }
+
+    private fun nativeWorkerItemsSnapshot(includeStatic: Boolean): JSONArray {
+        val array = JSONArray()
+        synchronized(nativeWorkerItems) {
+            for (item in nativeWorkerItems) {
+                array.put(nativeWorkerItemSnapshotLocked(item, includeStatic))
+            }
+        }
+        return array
+    }
+
+    private fun nativeWorkerItemSnapshotLocked(item: NativeWorkerItem, includeStatic: Boolean): JSONObject {
+        val json = JSONObject()
+            .put("item_id", item.itemId)
+            .put("status", item.status)
+            .put("progress", item.progress)
+            .put("bytes_received", item.bytesReceived)
+            .put("bytes_total", item.bytesTotal)
+        if (includeStatic) {
+            json.put("track_name", item.trackName)
+                .put("artist_name", item.artistName)
+                .put("item_json", item.itemJson)
+        }
+        if (item.error.isNotBlank()) {
+            json.put("error", item.error)
+        }
+        item.resultJson?.let { json.put("result", it) }
+        return json
     }
 
     @Synchronized
@@ -1112,7 +1235,8 @@ class DownloadService : Service() {
                 isRunning = false,
                 isPaused = false,
                 currentItemId = "",
-                message = "Service stopped"
+                message = "Service stopped",
+                includeItems = true
             )
         }
         nativeWorkerJob = null
@@ -1199,7 +1323,8 @@ class DownloadService : Service() {
                 isRunning = false,
                 isPaused = false,
                 currentItemId = "",
-                message = "Service destroyed"
+                message = "Service destroyed",
+                includeItems = true
             )
         }
         serviceScope.cancel()
