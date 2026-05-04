@@ -260,97 +260,108 @@ func FetchMusicBrainzGenreByISRC(isrc string) (string, error) {
 }
 
 type DownloadRequest struct {
-	ISRC                 string `json:"isrc"`
-	Service              string `json:"service"`
-	SpotifyID            string `json:"spotify_id"`
-	TrackName            string `json:"track_name"`
-	ArtistName           string `json:"artist_name"`
-	AlbumName            string `json:"album_name"`
-	AlbumArtist          string `json:"album_artist"`
-	CoverURL             string `json:"cover_url"`
-	OutputDir            string `json:"output_dir"`
-	OutputPath           string `json:"output_path,omitempty"`
-	OutputFD             int    `json:"output_fd,omitempty"`
-	OutputExt            string `json:"output_ext,omitempty"`
-	FilenameFormat       string `json:"filename_format"`
-	Quality              string `json:"quality"`
-	EmbedMetadata        bool   `json:"embed_metadata"`
-	ArtistTagMode        string `json:"artist_tag_mode,omitempty"`
-	EmbedLyrics          bool   `json:"embed_lyrics"`
-	EmbedMaxQualityCover bool   `json:"embed_max_quality_cover"`
-	TrackNumber          int    `json:"track_number"`
-	DiscNumber           int    `json:"disc_number"`
-	TotalTracks          int    `json:"total_tracks"`
-	TotalDiscs           int    `json:"total_discs,omitempty"`
-	ReleaseDate          string `json:"release_date"`
-	ItemID               string `json:"item_id"`
-	DurationMS           int    `json:"duration_ms"`
-	Source               string `json:"source"`
-	Genre                string `json:"genre,omitempty"`
-	Label                string `json:"label,omitempty"`
-	Copyright            string `json:"copyright,omitempty"`
-	Composer             string `json:"composer,omitempty"`
-	TidalID              string `json:"tidal_id,omitempty"`
-	QobuzID              string `json:"qobuz_id,omitempty"`
-	DeezerID             string `json:"deezer_id,omitempty"`
-	LyricsMode           string `json:"lyrics_mode,omitempty"`
-	UseExtensions        bool   `json:"use_extensions,omitempty"`
-	UseFallback          bool   `json:"use_fallback,omitempty"`
-	SongLinkRegion       string `json:"songlink_region,omitempty"`
+	ContractVersion             int    `json:"contract_version,omitempty"`
+	ISRC                        string `json:"isrc"`
+	Service                     string `json:"service"`
+	SpotifyID                   string `json:"spotify_id"`
+	TrackName                   string `json:"track_name"`
+	ArtistName                  string `json:"artist_name"`
+	AlbumName                   string `json:"album_name"`
+	AlbumArtist                 string `json:"album_artist"`
+	CoverURL                    string `json:"cover_url"`
+	OutputDir                   string `json:"output_dir"`
+	OutputPath                  string `json:"output_path,omitempty"`
+	OutputFD                    int    `json:"output_fd,omitempty"`
+	OutputExt                   string `json:"output_ext,omitempty"`
+	FilenameFormat              string `json:"filename_format"`
+	Quality                     string `json:"quality"`
+	EmbedMetadata               bool   `json:"embed_metadata"`
+	ArtistTagMode               string `json:"artist_tag_mode,omitempty"`
+	EmbedLyrics                 bool   `json:"embed_lyrics"`
+	EmbedMaxQualityCover        bool   `json:"embed_max_quality_cover"`
+	EmbedReplayGain             bool   `json:"embed_replaygain,omitempty"`
+	PostProcessingEnabled       bool   `json:"post_processing_enabled,omitempty"`
+	TidalHighFormat             string `json:"tidal_high_format,omitempty"`
+	TrackNumber                 int    `json:"track_number"`
+	DiscNumber                  int    `json:"disc_number"`
+	TotalTracks                 int    `json:"total_tracks"`
+	TotalDiscs                  int    `json:"total_discs,omitempty"`
+	ReleaseDate                 string `json:"release_date"`
+	ItemID                      string `json:"item_id"`
+	DurationMS                  int    `json:"duration_ms"`
+	Source                      string `json:"source"`
+	Genre                       string `json:"genre,omitempty"`
+	Label                       string `json:"label,omitempty"`
+	Copyright                   string `json:"copyright,omitempty"`
+	Composer                    string `json:"composer,omitempty"`
+	TidalID                     string `json:"tidal_id,omitempty"`
+	QobuzID                     string `json:"qobuz_id,omitempty"`
+	DeezerID                    string `json:"deezer_id,omitempty"`
+	LyricsMode                  string `json:"lyrics_mode,omitempty"`
+	UseExtensions               bool   `json:"use_extensions,omitempty"`
+	UseFallback                 bool   `json:"use_fallback,omitempty"`
+	RequiresContainerConversion bool   `json:"requires_container_conversion,omitempty"`
+	SongLinkRegion              string `json:"songlink_region,omitempty"`
 }
 
 type DownloadResponse struct {
-	Success                bool                    `json:"success"`
-	Message                string                  `json:"message"`
-	FilePath               string                  `json:"file_path,omitempty"`
-	Error                  string                  `json:"error,omitempty"`
-	ErrorType              string                  `json:"error_type,omitempty"`
-	AlreadyExists          bool                    `json:"already_exists,omitempty"`
-	ActualBitDepth         int                     `json:"actual_bit_depth,omitempty"`
-	ActualSampleRate       int                     `json:"actual_sample_rate,omitempty"`
-	Service                string                  `json:"service,omitempty"`
-	Title                  string                  `json:"title,omitempty"`
-	Artist                 string                  `json:"artist,omitempty"`
-	Album                  string                  `json:"album,omitempty"`
-	AlbumArtist            string                  `json:"album_artist,omitempty"`
-	ReleaseDate            string                  `json:"release_date,omitempty"`
-	TrackNumber            int                     `json:"track_number,omitempty"`
-	DiscNumber             int                     `json:"disc_number,omitempty"`
-	TotalTracks            int                     `json:"total_tracks,omitempty"`
-	TotalDiscs             int                     `json:"total_discs,omitempty"`
-	ISRC                   string                  `json:"isrc,omitempty"`
-	CoverURL               string                  `json:"cover_url,omitempty"`
-	Genre                  string                  `json:"genre,omitempty"`
-	Label                  string                  `json:"label,omitempty"`
-	Copyright              string                  `json:"copyright,omitempty"`
-	Composer               string                  `json:"composer,omitempty"`
-	SkipMetadataEnrichment bool                    `json:"skip_metadata_enrichment,omitempty"`
-	LyricsLRC              string                  `json:"lyrics_lrc,omitempty"`
-	DecryptionKey          string                  `json:"decryption_key,omitempty"`
-	Decryption             *DownloadDecryptionInfo `json:"decryption,omitempty"`
+	Success                     bool                    `json:"success"`
+	Message                     string                  `json:"message"`
+	FilePath                    string                  `json:"file_path,omitempty"`
+	Error                       string                  `json:"error,omitempty"`
+	ErrorType                   string                  `json:"error_type,omitempty"`
+	AlreadyExists               bool                    `json:"already_exists,omitempty"`
+	ActualBitDepth              int                     `json:"actual_bit_depth,omitempty"`
+	ActualSampleRate            int                     `json:"actual_sample_rate,omitempty"`
+	ActualExtension             string                  `json:"actual_extension,omitempty"`
+	ActualContainer             string                  `json:"actual_container,omitempty"`
+	RequiresContainerConversion bool                    `json:"requires_container_conversion,omitempty"`
+	Service                     string                  `json:"service,omitempty"`
+	Title                       string                  `json:"title,omitempty"`
+	Artist                      string                  `json:"artist,omitempty"`
+	Album                       string                  `json:"album,omitempty"`
+	AlbumArtist                 string                  `json:"album_artist,omitempty"`
+	ReleaseDate                 string                  `json:"release_date,omitempty"`
+	TrackNumber                 int                     `json:"track_number,omitempty"`
+	DiscNumber                  int                     `json:"disc_number,omitempty"`
+	TotalTracks                 int                     `json:"total_tracks,omitempty"`
+	TotalDiscs                  int                     `json:"total_discs,omitempty"`
+	ISRC                        string                  `json:"isrc,omitempty"`
+	CoverURL                    string                  `json:"cover_url,omitempty"`
+	Genre                       string                  `json:"genre,omitempty"`
+	Label                       string                  `json:"label,omitempty"`
+	Copyright                   string                  `json:"copyright,omitempty"`
+	Composer                    string                  `json:"composer,omitempty"`
+	SkipMetadataEnrichment      bool                    `json:"skip_metadata_enrichment,omitempty"`
+	LyricsLRC                   string                  `json:"lyrics_lrc,omitempty"`
+	DecryptionKey               string                  `json:"decryption_key,omitempty"`
+	Decryption                  *DownloadDecryptionInfo `json:"decryption,omitempty"`
 }
 
 type DownloadResult struct {
-	FilePath      string
-	BitDepth      int
-	SampleRate    int
-	Title         string
-	Artist        string
-	Album         string
-	ReleaseDate   string
-	TrackNumber   int
-	TotalTracks   int
-	DiscNumber    int
-	TotalDiscs    int
-	ISRC          string
-	CoverURL      string
-	Genre         string
-	Label         string
-	Copyright     string
-	Composer      string
-	LyricsLRC     string
-	DecryptionKey string
-	Decryption    *DownloadDecryptionInfo
+	FilePath                    string
+	BitDepth                    int
+	SampleRate                  int
+	Title                       string
+	Artist                      string
+	Album                       string
+	ReleaseDate                 string
+	TrackNumber                 int
+	TotalTracks                 int
+	DiscNumber                  int
+	TotalDiscs                  int
+	ISRC                        string
+	CoverURL                    string
+	Genre                       string
+	Label                       string
+	Copyright                   string
+	Composer                    string
+	LyricsLRC                   string
+	DecryptionKey               string
+	Decryption                  *DownloadDecryptionInfo
+	ActualExtension             string
+	ActualContainer             string
+	RequiresContainerConversion bool
 }
 
 var fetchDeezerExtendedMetadataByISRC = func(ctx context.Context, isrc string) (*AlbumExtendedMetadata, error) {
@@ -846,31 +857,34 @@ func buildDownloadSuccessResponse(
 	}
 
 	return DownloadResponse{
-		Success:          true,
-		Message:          message,
-		FilePath:         filePath,
-		AlreadyExists:    alreadyExists,
-		ActualBitDepth:   result.BitDepth,
-		ActualSampleRate: result.SampleRate,
-		Service:          service,
-		Title:            title,
-		Artist:           artist,
-		Album:            album,
-		AlbumArtist:      req.AlbumArtist,
-		ReleaseDate:      releaseDate,
-		TrackNumber:      trackNumber,
-		TotalTracks:      req.TotalTracks,
-		DiscNumber:       discNumber,
-		TotalDiscs:       req.TotalDiscs,
-		ISRC:             isrc,
-		CoverURL:         coverURL,
-		Genre:            genre,
-		Label:            label,
-		Copyright:        copyright,
-		Composer:         composer,
-		LyricsLRC:        result.LyricsLRC,
-		DecryptionKey:    result.DecryptionKey,
-		Decryption:       normalizeDownloadDecryptionInfo(result.Decryption, result.DecryptionKey),
+		Success:                     true,
+		Message:                     message,
+		FilePath:                    filePath,
+		AlreadyExists:               alreadyExists,
+		ActualBitDepth:              result.BitDepth,
+		ActualSampleRate:            result.SampleRate,
+		ActualExtension:             result.ActualExtension,
+		ActualContainer:             result.ActualContainer,
+		RequiresContainerConversion: result.RequiresContainerConversion,
+		Service:                     service,
+		Title:                       title,
+		Artist:                      artist,
+		Album:                       album,
+		AlbumArtist:                 req.AlbumArtist,
+		ReleaseDate:                 releaseDate,
+		TrackNumber:                 trackNumber,
+		TotalTracks:                 req.TotalTracks,
+		DiscNumber:                  discNumber,
+		TotalDiscs:                  req.TotalDiscs,
+		ISRC:                        isrc,
+		CoverURL:                    coverURL,
+		Genre:                       genre,
+		Label:                       label,
+		Copyright:                   copyright,
+		Composer:                    composer,
+		LyricsLRC:                   result.LyricsLRC,
+		DecryptionKey:               result.DecryptionKey,
+		Decryption:                  normalizeDownloadDecryptionInfo(result.Decryption, result.DecryptionKey),
 	}
 }
 

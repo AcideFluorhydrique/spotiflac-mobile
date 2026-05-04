@@ -835,7 +835,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     await _loadFromDatabase();
   }
 
-  void addToHistory(DownloadHistoryItem item) {
+  DownloadHistoryItem _putInMemoryHistory(DownloadHistoryItem item) {
     DownloadHistoryItem? existing;
     if (item.spotifyId != null && item.spotifyId!.isNotEmpty) {
       existing = state.getBySpotifyId(item.spotifyId!);
@@ -876,10 +876,18 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
       state = state.copyWith(items: [mergedItem, ...state.items]);
       _historyLog.d('Added new history entry: ${mergedItem.trackName}');
     }
+    return mergedItem;
+  }
 
+  void addToHistory(DownloadHistoryItem item) {
+    final mergedItem = _putInMemoryHistory(item);
     _db.upsert(mergedItem.toJson()).catchError((Object e) {
       _historyLog.e('Failed to save to database: $e');
     });
+  }
+
+  void adoptNativeHistoryItem(DownloadHistoryItem item) {
+    _putInMemoryHistory(item);
   }
 
   void removeFromHistory(String id) {
@@ -1316,6 +1324,30 @@ class _ProgressUpdate {
   });
 }
 
+class _NativeWorkerRequestContext {
+  final DownloadItem item;
+  final String requestJson;
+  final String outputDir;
+  final String quality;
+  final String storageMode;
+  final String outputExt;
+  final String? downloadTreeUri;
+  final String? safRelativeDir;
+  final String? safFileName;
+
+  const _NativeWorkerRequestContext({
+    required this.item,
+    required this.requestJson,
+    required this.outputDir,
+    required this.quality,
+    required this.storageMode,
+    required this.outputExt,
+    this.downloadTreeUri,
+    this.safRelativeDir,
+    this.safFileName,
+  });
+}
+
 class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   Timer? _progressTimer;
   Timer? _progressStreamBootstrapTimer;
@@ -1328,6 +1360,8 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   static const _idleProgressPollEveryTicks = 3;
   static const _queueSchedulingInterval = Duration(milliseconds: 250);
   static const _queuePersistDebounceDuration = Duration(milliseconds: 350);
+  static const _nativeWorkerRunIdPrefsKey =
+      'download_queue_native_worker_run_id';
   static const _bytesUiStep = 104857; // ~0.1 MiB, matches one-decimal MB UI.
   static const _serviceProgressStepPercent = 2;
   final NotificationService _notificationService = NotificationService();
@@ -1358,6 +1392,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   int _lastNotifQueueCount = -1;
   final Set<String> _locallyCancelledItemIds = {};
   final Set<String> _pausePendingItemIds = {};
+  String? _activeNativeWorkerRunId;
 
   // Album ReplayGain accumulator: keyed by album identifier.
   // Stores per-track loudness data until all album tracks are done,
@@ -1474,7 +1509,8 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           if (normalizedService != item.service) {
             item = item.copyWith(service: normalizedService);
           }
-          if (item.status == DownloadStatus.downloading) {
+          if (item.status == DownloadStatus.downloading ||
+              item.status == DownloadStatus.finalizing) {
             item = item.copyWith(status: DownloadStatus.queued, progress: 0);
           }
           if (item.status == DownloadStatus.queued) {
@@ -1496,6 +1532,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       _log.i(
         'Restored ${normalizedPendingItems.length} pending items from storage',
       );
+      if (await _tryAdoptAndroidNativeWorkerSnapshot(normalizedPendingItems)) {
+        return;
+      }
       Future.microtask(() => _processQueue());
     } catch (e) {
       _log.e('Failed to load queue from storage: $e');
@@ -1515,7 +1554,8 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           .where(
             (item) =>
                 item.status == DownloadStatus.queued ||
-                item.status == DownloadStatus.downloading,
+                item.status == DownloadStatus.downloading ||
+                item.status == DownloadStatus.finalizing,
           )
           .toList();
 
@@ -2466,6 +2506,21 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     );
   }
 
+  bool _extensionRequiresNativeContainerConversion(String service) {
+    final normalizedService = service.trim().toLowerCase();
+    if (normalizedService.isEmpty) return false;
+
+    final extensionState = ref.read(extensionProvider);
+    return extensionState.extensions.any(
+      (ext) =>
+          ext.enabled &&
+          ext.hasDownloadProvider &&
+          (ext.id.toLowerCase() == normalizedService ||
+              ext.replacesBuiltInProviders.contains(normalizedService)) &&
+          ext.requiresNativeContainerConversion,
+    );
+  }
+
   String _determineOutputExt(String quality, String service) {
     final extensionPreferred = _extensionPreferredOutputExt(service);
     if (extensionPreferred != null) {
@@ -3249,6 +3304,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
 
     state = state.copyWith(items: [], isPaused: false, currentDownload: null);
+    if (Platform.isAndroid &&
+        ref.read(settingsProvider).nativeDownloadWorkerEnabled) {
+      PlatformBridge.cancelNativeDownloadWorker().catchError((_) {});
+    }
     _notificationService.cancelDownloadNotification();
     _saveQueueToStorage();
     _albumRgData.clear();
@@ -3260,6 +3319,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
   void pauseQueue() {
     if (state.isProcessing && !state.isPaused) {
+      if (Platform.isAndroid &&
+          ref.read(settingsProvider).nativeDownloadWorkerEnabled) {
+        PlatformBridge.pauseNativeDownloadWorker().catchError((_) {});
+      }
       final activeIds = state.items
           .where(
             (item) =>
@@ -3285,6 +3348,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
   void resumeQueue() {
     if (state.isPaused) {
+      if (Platform.isAndroid &&
+          ref.read(settingsProvider).nativeDownloadWorkerEnabled) {
+        PlatformBridge.resumeNativeDownloadWorker().catchError((_) {});
+      }
       state = state.copyWith(isPaused: false);
       _log.i('Queue resumed');
       if (state.queuedCount > 0 && !state.isProcessing) {
@@ -3476,7 +3543,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
-  Future<void> _runPostProcessingHooks(String filePath, Track track) async {
+  Future<String?> _runPostProcessingHooks(String filePath, Track track) async {
     try {
       final settings = ref.read(settingsProvider);
       final extensionState = ref.read(extensionProvider);
@@ -3485,12 +3552,12 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         settings,
       );
 
-      if (!settings.useExtensionProviders) return;
+      if (!settings.useExtensionProviders) return null;
 
       final hasPostProcessing = extensionState.extensions.any(
         (e) => e.enabled && e.hasPostProcessing,
       );
-      if (!hasPostProcessing) return;
+      if (!hasPostProcessing) return null;
 
       _log.d('Running post-processing hooks on: $filePath');
 
@@ -3521,7 +3588,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
         if (newPath != null && newPath != filePath) {
           _log.d('File path changed by post-processing: $newPath');
+          return newPath;
         }
+        return filePath;
       } else {
         final error = result['error'] as String? ?? 'Unknown error';
         _log.w('Post-processing failed: $error');
@@ -3529,6 +3598,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     } catch (e) {
       _log.w('Post-processing error: $e');
     }
+    return null;
   }
 
   // ---------------------------------------------------------------------------
@@ -4343,6 +4413,1328 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
+  bool _canUseAndroidNativeWorker(AppSettings settings) {
+    if (!Platform.isAndroid || !settings.nativeDownloadWorkerEnabled) {
+      return false;
+    }
+    if (!settings.useExtensionProviders) {
+      return false;
+    }
+    if (_isSafMode(settings)) {
+      if (settings.downloadTreeUri.isEmpty) {
+        return false;
+      }
+    }
+    final extensionState = ref.read(extensionProvider);
+    final hasEnabledDownloadProvider = extensionState.extensions.any(
+      (extension) => extension.enabled && extension.hasDownloadProvider,
+    );
+    if (!hasEnabledDownloadProvider) {
+      return false;
+    }
+    return true;
+  }
+
+  String _newNativeWorkerRunId() =>
+      'native-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}';
+
+  String _snapshotRunId(Map<String, dynamic> snapshot) {
+    final direct = snapshot['run_id']?.toString() ?? '';
+    if (direct.isNotEmpty) return direct;
+
+    final settingsJson = snapshot['settings_json'];
+    if (settingsJson is String && settingsJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(settingsJson);
+        if (decoded is Map) {
+          return decoded['run_id']?.toString() ?? '';
+        }
+      } catch (_) {}
+    } else if (settingsJson is Map) {
+      return settingsJson['run_id']?.toString() ?? '';
+    }
+    return '';
+  }
+
+  bool _isNativeWorkerSnapshotContractCompatible(
+    Map<String, dynamic> snapshot,
+  ) {
+    final version = snapshot['contract_version'];
+    return version == DownloadRequestPayload.nativeWorkerContractVersion;
+  }
+
+  bool _isNativeWorkerSnapshotForRun(
+    Map<String, dynamic> snapshot,
+    String runId,
+  ) =>
+      runId.isNotEmpty &&
+      _snapshotRunId(snapshot) == runId &&
+      _isNativeWorkerSnapshotContractCompatible(snapshot);
+
+  Future<void> _persistNativeWorkerRunId(String runId) async {
+    _activeNativeWorkerRunId = runId;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_nativeWorkerRunIdPrefsKey, runId);
+  }
+
+  Future<String?> _loadNativeWorkerRunId() async {
+    if (_activeNativeWorkerRunId != null) return _activeNativeWorkerRunId;
+    final prefs = await SharedPreferences.getInstance();
+    final runId = prefs.getString(_nativeWorkerRunIdPrefsKey);
+    if (runId != null && runId.isNotEmpty) {
+      _activeNativeWorkerRunId = runId;
+      return runId;
+    }
+    return null;
+  }
+
+  Future<void> _clearNativeWorkerRunId(String runId) async {
+    if (_activeNativeWorkerRunId == runId) {
+      _activeNativeWorkerRunId = null;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getString(_nativeWorkerRunIdPrefsKey) == runId) {
+      await prefs.remove(_nativeWorkerRunIdPrefsKey);
+    }
+  }
+
+  Future<bool> _tryAdoptAndroidNativeWorkerSnapshot(
+    List<DownloadItem> restoredItems,
+  ) async {
+    final settings = ref.read(settingsProvider);
+    if (!_canUseAndroidNativeWorker(settings)) {
+      return false;
+    }
+
+    Map<String, dynamic> snapshot;
+    try {
+      snapshot = await PlatformBridge.getNativeDownloadWorkerSnapshot();
+    } catch (_) {
+      return false;
+    }
+    final runId = await _loadNativeWorkerRunId();
+    if (runId == null ||
+        runId.isEmpty ||
+        !_isNativeWorkerSnapshotForRun(snapshot, runId)) {
+      return false;
+    }
+
+    final rawItems = snapshot['items'];
+    if (rawItems is! List || rawItems.isEmpty) {
+      return false;
+    }
+
+    final snapshotIds = rawItems
+        .whereType<Map<Object?, Object?>>()
+        .map((item) => item['item_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    if (!restoredItems.any((item) => snapshotIds.contains(item.id))) {
+      return false;
+    }
+
+    final contexts = <String, _NativeWorkerRequestContext>{};
+    for (final item in restoredItems) {
+      if (!snapshotIds.contains(item.id)) continue;
+      final context = await _buildAndroidNativeWorkerRequest(item, settings);
+      if (context != null) {
+        contexts[item.id] = context;
+      }
+    }
+    if (contexts.isEmpty) {
+      return false;
+    }
+
+    _log.i('Adopting Android native worker snapshot');
+    final reconciledIds = <String>{};
+    _totalQueuedAtStart = contexts.length;
+    _completedInSession = 0;
+    _failedInSession = 0;
+    state = state.copyWith(
+      isProcessing: snapshot['is_running'] == true,
+      isPaused: snapshot['is_paused'] == true,
+    );
+    await _applyAndroidNativeWorkerSnapshot(
+      snapshot,
+      contexts,
+      reconciledIds,
+      settings,
+    );
+
+    if (snapshot['is_running'] == true) {
+      unawaited(
+        _continueAndroidNativeWorkerAdoption(
+          contexts,
+          reconciledIds,
+          settings,
+          runId,
+        ),
+      );
+    } else if (state.items.any(
+      (item) => item.status == DownloadStatus.queued,
+    )) {
+      await _clearNativeWorkerRunId(runId);
+      Future.microtask(() => _processQueue());
+    } else {
+      await _clearNativeWorkerRunId(runId);
+    }
+
+    return true;
+  }
+
+  Future<void> _continueAndroidNativeWorkerAdoption(
+    Map<String, _NativeWorkerRequestContext> contexts,
+    Set<String> reconciledIds,
+    AppSettings settings,
+    String runId,
+  ) async {
+    try {
+      while (true) {
+        final snapshot = await PlatformBridge.getNativeDownloadWorkerSnapshot();
+        if (!_isNativeWorkerSnapshotForRun(snapshot, runId)) {
+          await Future<void>.delayed(const Duration(seconds: 1));
+          continue;
+        }
+        await _applyAndroidNativeWorkerSnapshot(
+          snapshot,
+          contexts,
+          reconciledIds,
+          settings,
+        );
+        if (snapshot['is_running'] != true) {
+          await _clearNativeWorkerRunId(runId);
+          break;
+        }
+        await Future<void>.delayed(const Duration(seconds: 1));
+      }
+    } catch (e) {
+      _log.w('Android native worker adoption stopped: $e');
+    } finally {
+      state = state.copyWith(isProcessing: false, currentDownload: null);
+    }
+  }
+
+  Future<bool> _tryProcessQueueWithAndroidNativeWorker(
+    AppSettings settings,
+  ) async {
+    if (!_canUseAndroidNativeWorker(settings)) {
+      return false;
+    }
+
+    final queuedItems = state.items
+        .where((item) => item.status == DownloadStatus.queued)
+        .toList(growable: false);
+    if (queuedItems.isEmpty) {
+      return false;
+    }
+
+    _log.i(
+      'Starting Android native download worker for ${queuedItems.length} items',
+    );
+
+    final isSafMode = _isSafMode(settings);
+    if (!isSafMode && state.outputDir.isEmpty) {
+      await _initOutputDir();
+    }
+    if (!isSafMode && state.outputDir.isEmpty) {
+      final musicDir = await _ensureDefaultDocumentsOutputDir();
+      state = state.copyWith(outputDir: musicDir.path);
+    }
+
+    final contexts = <String, _NativeWorkerRequestContext>{};
+    final requests = <Map<String, dynamic>>[];
+    for (final item in queuedItems) {
+      final context = await _buildAndroidNativeWorkerRequest(item, settings);
+      if (context == null) {
+        _log.w(
+          'Native worker gate rejected ${item.track.name}; falling back to Dart queue',
+        );
+        return false;
+      }
+      contexts[item.id] = context;
+      requests.add({
+        'contract_version': DownloadRequestPayload.nativeWorkerContractVersion,
+        'item_id': item.id,
+        'track_name': item.track.name,
+        'artist_name': item.track.artistName,
+        'item_json': jsonEncode(item.toJson()),
+        'request_json': context.requestJson,
+      });
+    }
+
+    state = state.copyWith(isProcessing: true, isPaused: false);
+    _totalQueuedAtStart = queuedItems.length;
+    _completedInSession = 0;
+    _failedInSession = 0;
+
+    final runId = _newNativeWorkerRunId();
+    await _persistNativeWorkerRunId(runId);
+    final reconciledIds = <String>{};
+    try {
+      await PlatformBridge.startNativeDownloadWorker(
+        requests: requests,
+        settings: {
+          'worker': 'android_native',
+          'version': 1,
+          'contract_version':
+              DownloadRequestPayload.nativeWorkerContractVersion,
+          'run_id': runId,
+          'created_at': DateTime.now().toIso8601String(),
+        },
+      );
+
+      final runStartWait = Stopwatch()..start();
+      while (true) {
+        final snapshot = await PlatformBridge.getNativeDownloadWorkerSnapshot();
+        if (!_isNativeWorkerSnapshotForRun(snapshot, runId)) {
+          if (runStartWait.elapsed > const Duration(seconds: 30)) {
+            throw _NativeWorkerStartupTimeout();
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 250));
+          continue;
+        }
+        await _applyAndroidNativeWorkerSnapshot(
+          snapshot,
+          contexts,
+          reconciledIds,
+          settings,
+        );
+        if (snapshot['is_running'] != true) {
+          await _clearNativeWorkerRunId(runId);
+          break;
+        }
+        await Future<void>.delayed(const Duration(seconds: 1));
+      }
+    } catch (e, stack) {
+      if (e is _NativeWorkerStartupTimeout) {
+        _log.w(
+          'Android native worker did not publish a matching snapshot; cancelling native worker and falling back to Dart queue',
+        );
+        try {
+          await PlatformBridge.cancelNativeDownloadWorker();
+        } catch (cancelError) {
+          _log.w('Failed to cancel timed-out native worker: $cancelError');
+        }
+        await _clearNativeWorkerRunId(runId);
+        state = state.copyWith(isProcessing: false, currentDownload: null);
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        return false;
+      }
+      _log.e('Android native worker failed: $e', e, stack);
+      for (final item in queuedItems) {
+        final current = _findItemById(item.id);
+        if (current == null ||
+            current.status == DownloadStatus.completed ||
+            current.status == DownloadStatus.failed ||
+            current.status == DownloadStatus.skipped) {
+          continue;
+        }
+        updateItemStatus(
+          item.id,
+          DownloadStatus.failed,
+          error: 'Native download worker failed: $e',
+          errorType: DownloadErrorType.unknown,
+        );
+        _failedInSession++;
+      }
+    } finally {
+      state = state.copyWith(isProcessing: false, currentDownload: null);
+      _stopConnectivityMonitoring();
+      try {
+        await PlatformBridge.cleanupConnections();
+      } catch (e) {
+        _log.e('Native worker cleanup failed: $e');
+      }
+    }
+
+    if (_totalQueuedAtStart > 0) {
+      await _notificationService.showQueueComplete(
+        completedCount: _completedInSession,
+        failedCount: _failedInSession,
+      );
+    }
+
+    final hasQueuedItems = state.items.any(
+      (item) => item.status == DownloadStatus.queued,
+    );
+    if (hasQueuedItems && !state.isPaused) {
+      _log.i(
+        'Found queued items after Android native worker finished, restarting queue...',
+      );
+      Future.microtask(() => _processQueue());
+    }
+
+    return true;
+  }
+
+  Future<_NativeWorkerRequestContext?> _buildAndroidNativeWorkerRequest(
+    DownloadItem item,
+    AppSettings settings,
+  ) async {
+    if (!_hasActiveDownloadProvider(item.service)) {
+      return null;
+    }
+
+    var quality = item.qualityOverride ?? state.audioQuality;
+    if (quality == 'DEFAULT') quality = state.audioQuality;
+
+    final isSafMode = _isSafMode(settings);
+    final outputDir = isSafMode
+        ? await _buildRelativeOutputDir(
+            item.track,
+            settings.folderOrganization,
+            separateSingles: settings.separateSingles,
+            albumFolderStructure: settings.albumFolderStructure,
+            createPlaylistFolder: settings.createPlaylistFolder,
+            useAlbumArtistForFolders: settings.useAlbumArtistForFolders,
+            usePrimaryArtistOnly: settings.usePrimaryArtistOnly,
+            filterContributingArtistsInAlbumArtist:
+                settings.filterContributingArtistsInAlbumArtist,
+            playlistName: item.playlistName,
+          )
+        : await _buildOutputDir(
+            item.track,
+            settings.folderOrganization,
+            separateSingles: settings.separateSingles,
+            albumFolderStructure: settings.albumFolderStructure,
+            createPlaylistFolder: settings.createPlaylistFolder,
+            useAlbumArtistForFolders: settings.useAlbumArtistForFolders,
+            usePrimaryArtistOnly: settings.usePrimaryArtistOnly,
+            filterContributingArtistsInAlbumArtist:
+                settings.filterContributingArtistsInAlbumArtist,
+            playlistName: item.playlistName,
+          );
+    if (!isSafMode) {
+      await _ensureDirExists(outputDir, label: 'Output folder');
+    }
+
+    final outputExt = _determineOutputExt(quality, item.service);
+    if (settings.embedReplayGain &&
+        outputExt != '.flac' &&
+        outputExt != '.m4a') {
+      return null;
+    }
+
+    String? safFileName;
+    final safOutputExt = isSafMode ? outputExt : '';
+    if (isSafMode) {
+      final effectiveFormat = _shouldTreatAsSingleRelease(item.track)
+          ? state.singleFilenameFormat
+          : state.filenameFormat;
+      final baseName = await PlatformBridge.buildFilename(effectiveFormat, {
+        'title': item.track.name,
+        'artist': item.track.artistName,
+        'album': item.track.albumName,
+        'track': item.track.trackNumber ?? 0,
+        'disc': item.track.discNumber ?? 0,
+        'year': _extractYear(item.track.releaseDate) ?? '',
+        'date': item.track.releaseDate ?? '',
+      });
+      final sanitized = await PlatformBridge.sanitizeFilename(baseName);
+      safFileName = '$sanitized$safOutputExt';
+    }
+
+    var trackForPayload = item.track;
+    String? nativeDeezerTrackId = _extractKnownDeezerTrackId(trackForPayload);
+    String? nativeGenre;
+    String? nativeLabel;
+    String? nativeCopyright;
+
+    if (nativeDeezerTrackId == null &&
+        trackForPayload.isrc != null &&
+        trackForPayload.isrc!.isNotEmpty &&
+        _isValidISRC(trackForPayload.isrc!)) {
+      nativeDeezerTrackId = await _searchDeezerTrackIdByIsrc(
+        trackForPayload.isrc,
+        lookupContext: 'native worker ISRC',
+        itemId: item.id,
+      );
+    }
+
+    if (nativeDeezerTrackId == null &&
+        (trackForPayload.isrc == null ||
+            trackForPayload.isrc!.isEmpty ||
+            !_isValidISRC(trackForPayload.isrc!)) &&
+        (trackForPayload.id.startsWith('tidal:') ||
+            trackForPayload.id.startsWith('qobuz:'))) {
+      final providerLookup = await _resolveProviderTrackForDeezerLookup(
+        trackForPayload,
+        item.id,
+      );
+      trackForPayload = providerLookup.track;
+      nativeDeezerTrackId ??= providerLookup.deezerTrackId;
+    }
+
+    if (nativeDeezerTrackId != null && nativeDeezerTrackId.isNotEmpty) {
+      final extendedMetadata = await _loadDeezerExtendedMetadata(
+        nativeDeezerTrackId,
+      );
+      nativeGenre = extendedMetadata.genre;
+      nativeLabel = extendedMetadata.label;
+      nativeCopyright = extendedMetadata.copyright;
+    }
+
+    final resolvedAlbumArtist = _resolveAlbumArtistForMetadata(
+      trackForPayload,
+      settings,
+    );
+    final extensionState = ref.read(extensionProvider);
+    final postProcessingEnabled =
+        settings.useExtensionProviders &&
+        extensionState.extensions.any((e) => e.enabled && e.hasPostProcessing);
+    final normalizedTrackNumber =
+        (trackForPayload.trackNumber != null &&
+            trackForPayload.trackNumber! > 0)
+        ? trackForPayload.trackNumber!
+        : 0;
+    final normalizedDiscNumber =
+        (trackForPayload.discNumber != null && trackForPayload.discNumber! > 0)
+        ? trackForPayload.discNumber!
+        : 0;
+
+    String payloadSpotifyId = trackForPayload.id;
+    String payloadQobuzId = '';
+    String payloadTidalId = '';
+    if (trackForPayload.id.startsWith('qobuz:')) {
+      payloadQobuzId = trackForPayload.id.substring(6);
+      if (_usesBuiltInCompatibleDownloadProvider(item.service, 'qobuz')) {
+        payloadSpotifyId = '';
+      }
+    }
+    if (trackForPayload.id.startsWith('tidal:')) {
+      payloadTidalId = trackForPayload.id.substring(6);
+      if (_usesBuiltInCompatibleDownloadProvider(item.service, 'tidal')) {
+        payloadSpotifyId = '';
+      }
+    }
+
+    final payload = DownloadRequestPayload(
+      isrc: trackForPayload.isrc ?? '',
+      service: item.service,
+      spotifyId: payloadSpotifyId,
+      trackName: trackForPayload.name,
+      artistName: trackForPayload.artistName,
+      albumName: trackForPayload.albumName,
+      albumArtist: resolvedAlbumArtist ?? '',
+      coverUrl: settings.embedMetadata ? (trackForPayload.coverUrl ?? '') : '',
+      outputDir: outputDir,
+      filenameFormat: _shouldTreatAsSingleRelease(trackForPayload)
+          ? state.singleFilenameFormat
+          : state.filenameFormat,
+      quality: quality,
+      embedMetadata: settings.embedMetadata,
+      artistTagMode: settings.artistTagMode,
+      embedLyrics:
+          settings.embedMetadata &&
+          settings.embedLyrics &&
+          !_shouldSkipLyrics(
+            extensionState,
+            trackForPayload.source,
+            item.service,
+          ),
+      embedMaxQualityCover: settings.embedMetadata && settings.maxQualityCover,
+      embedReplayGain: settings.embedReplayGain,
+      postProcessingEnabled: postProcessingEnabled,
+      tidalHighFormat: settings.tidalHighFormat,
+      trackNumber: normalizedTrackNumber,
+      discNumber: normalizedDiscNumber,
+      totalTracks: trackForPayload.totalTracks ?? 0,
+      totalDiscs: trackForPayload.totalDiscs ?? 0,
+      releaseDate: trackForPayload.releaseDate ?? '',
+      itemId: item.id,
+      durationMs: trackForPayload.duration * 1000,
+      source: trackForPayload.source ?? '',
+      genre: nativeGenre ?? '',
+      label: nativeLabel ?? '',
+      copyright: nativeCopyright ?? '',
+      composer: trackForPayload.composer ?? '',
+      qobuzId: payloadQobuzId,
+      tidalId: payloadTidalId,
+      deezerId: nativeDeezerTrackId ?? '',
+      lyricsMode: settings.lyricsMode,
+      storageMode: isSafMode ? 'saf' : 'app',
+      safTreeUri: isSafMode ? settings.downloadTreeUri : '',
+      safRelativeDir: isSafMode ? outputDir : '',
+      safFileName: safFileName ?? '',
+      safOutputExt: safOutputExt,
+      stageSafOutput: isSafMode,
+      requiresContainerConversion:
+          outputExt == '.flac' &&
+          _extensionRequiresNativeContainerConversion(item.service),
+      songLinkRegion: settings.songLinkRegion,
+    ).withStrategy(useExtensions: true, useFallback: state.autoFallback);
+
+    return _NativeWorkerRequestContext(
+      item: item,
+      requestJson: jsonEncode(payload.toJson()),
+      outputDir: outputDir,
+      quality: quality,
+      storageMode: isSafMode ? 'saf' : 'app',
+      outputExt: outputExt,
+      downloadTreeUri: isSafMode ? settings.downloadTreeUri : null,
+      safRelativeDir: isSafMode ? outputDir : null,
+      safFileName: safFileName,
+    );
+  }
+
+  Future<void> _applyAndroidNativeWorkerSnapshot(
+    Map<String, dynamic> snapshot,
+    Map<String, _NativeWorkerRequestContext> contexts,
+    Set<String> reconciledIds,
+    AppSettings settings,
+  ) async {
+    final rawItems = snapshot['items'];
+    if (rawItems is! List) {
+      return;
+    }
+
+    for (final rawItem in rawItems) {
+      if (rawItem is! Map) continue;
+      final itemSnapshot = Map<String, dynamic>.from(rawItem);
+      final itemId = itemSnapshot['item_id']?.toString() ?? '';
+      if (itemId.isEmpty || reconciledIds.contains(itemId)) {
+        continue;
+      }
+      final context = contexts[itemId];
+      if (context == null) continue;
+
+      final status = itemSnapshot['status']?.toString() ?? 'queued';
+      final progress = ((itemSnapshot['progress'] as num?)?.toDouble() ?? 0.0)
+          .clamp(0.0, 1.0)
+          .toDouble();
+      final current = _findItemById(itemId);
+      if (current == null) {
+        reconciledIds.add(itemId);
+        continue;
+      }
+
+      if (status == 'queued') {
+        updateItemStatus(itemId, DownloadStatus.queued, progress: 0.0);
+        continue;
+      }
+
+      if (status == 'downloading') {
+        updateItemStatus(
+          itemId,
+          DownloadStatus.downloading,
+          progress: progress,
+        );
+        continue;
+      }
+
+      if (status == 'finalizing') {
+        updateItemStatus(
+          itemId,
+          DownloadStatus.finalizing,
+          progress: progress <= 0 ? 0.95 : progress,
+        );
+        continue;
+      }
+
+      if (status == 'completed') {
+        final result = itemSnapshot['result'];
+        if (result is Map) {
+          reconciledIds.add(itemId);
+          await _completeAndroidNativeWorkerItem(
+            context,
+            Map<String, dynamic>.from(result),
+            settings,
+          );
+        }
+        continue;
+      }
+
+      if (status == 'failed' || status == 'skipped') {
+        reconciledIds.add(itemId);
+        final result = itemSnapshot['result'];
+        final error = itemSnapshot['error']?.toString();
+        if (status == 'skipped') {
+          updateItemStatus(itemId, DownloadStatus.skipped);
+        } else {
+          final errorType = result is Map
+              ? _downloadErrorTypeFromBackend(
+                  Map<String, dynamic>.from(result)['error_type']?.toString(),
+                )
+              : DownloadErrorType.unknown;
+          updateItemStatus(
+            itemId,
+            DownloadStatus.failed,
+            error: error == null || error.isEmpty ? 'Download failed' : error,
+            errorType: errorType,
+          );
+          _failedInSession++;
+        }
+      }
+    }
+  }
+
+  Future<void> _completeAndroidNativeWorkerItem(
+    _NativeWorkerRequestContext context,
+    Map<String, dynamic> result,
+    AppSettings settings,
+  ) async {
+    final item = context.item;
+    var filePath = result['file_path'] as String?;
+    if (filePath == null || filePath.isEmpty) {
+      updateItemStatus(
+        item.id,
+        DownloadStatus.failed,
+        error: 'Native worker completed without a file path',
+        errorType: DownloadErrorType.unknown,
+      );
+      _failedInSession++;
+      return;
+    }
+
+    if (result['native_finalized'] == true) {
+      updateItemStatus(
+        item.id,
+        DownloadStatus.completed,
+        progress: 1.0,
+        filePath: filePath,
+      );
+      final historyItem = result['history_item'];
+      if (historyItem is Map) {
+        try {
+          ref
+              .read(downloadHistoryProvider.notifier)
+              .adoptNativeHistoryItem(
+                DownloadHistoryItem.fromJson(
+                  Map<String, dynamic>.from(historyItem),
+                ),
+              );
+        } catch (e) {
+          _log.w('Failed to adopt native history item: $e');
+          await ref.read(downloadHistoryProvider.notifier).reloadFromStorage();
+        }
+      } else if (result['history_written'] == true) {
+        await ref.read(downloadHistoryProvider.notifier).reloadFromStorage();
+      }
+      _completedInSession++;
+      await _notificationService.showDownloadComplete(
+        trackName: item.track.name,
+        artistName: item.track.artistName,
+        completedCount: _completedInSession,
+        totalCount: _totalQueuedAtStart,
+        alreadyInLibrary: result['already_exists'] == true,
+      );
+      removeItem(item.id);
+      return;
+    }
+
+    final finalizedPath = await _finalizeNativeWorkerDecryption(
+      context: context,
+      result: result,
+      filePath: filePath,
+    );
+    if (finalizedPath == null) {
+      updateItemStatus(
+        item.id,
+        DownloadStatus.failed,
+        error: 'Failed to decrypt encrypted stream',
+        errorType: DownloadErrorType.unknown,
+      );
+      _failedInSession++;
+      return;
+    }
+    filePath = finalizedPath;
+
+    var actualQuality = context.quality;
+    final actualBitDepth = result['actual_bit_depth'] as int?;
+    final actualSampleRate = result['actual_sample_rate'] as int?;
+    final resolvedQuality = buildDisplayAudioQuality(
+      bitDepth: actualBitDepth,
+      sampleRate: actualSampleRate,
+      storedQuality: actualQuality,
+    );
+    if (resolvedQuality != null) {
+      actualQuality = resolvedQuality;
+    }
+
+    final resolvedAlbumArtist = _resolveAlbumArtistForMetadata(
+      item.track,
+      settings,
+    );
+    final trackToDownload = _buildTrackForMetadataEmbedding(
+      item.track,
+      result,
+      resolvedAlbumArtist,
+    );
+    final convertedHighPath = await _finalizeNativeWorkerHighConversion(
+      context: context,
+      result: result,
+      settings: settings,
+      track: trackToDownload,
+      filePath: filePath,
+    );
+    if (convertedHighPath == null) {
+      updateItemStatus(
+        item.id,
+        DownloadStatus.failed,
+        error: 'Failed to convert HIGH quality download',
+        errorType: DownloadErrorType.unknown,
+      );
+      _failedInSession++;
+      return;
+    }
+    filePath = convertedHighPath;
+    final nativeActualQuality = result['_native_actual_quality'] as String?;
+    if (nativeActualQuality != null && nativeActualQuality.isNotEmpty) {
+      actualQuality = nativeActualQuality;
+    }
+    final convertedContainerPath =
+        await _finalizeNativeWorkerContainerConversion(
+          context: context,
+          result: result,
+          settings: settings,
+          track: trackToDownload,
+          filePath: filePath,
+        );
+    if (convertedContainerPath == null) {
+      updateItemStatus(
+        item.id,
+        DownloadStatus.failed,
+        error: 'Failed to convert downloaded container',
+        errorType: DownloadErrorType.unknown,
+      );
+      _failedInSession++;
+      return;
+    }
+    filePath = convertedContainerPath;
+
+    updateItemStatus(
+      item.id,
+      DownloadStatus.completed,
+      progress: 1.0,
+      filePath: filePath,
+    );
+    await _saveNativeWorkerExternalLrc(
+      context: context,
+      result: result,
+      settings: settings,
+      track: trackToDownload,
+      filePath: filePath,
+    );
+    final postProcessedPath = await _runPostProcessingHooks(
+      filePath,
+      trackToDownload,
+    );
+    if (postProcessedPath != null && postProcessedPath.isNotEmpty) {
+      filePath = postProcessedPath;
+    }
+    await _writeNativeWorkerReplayGain(
+      context: context,
+      settings: settings,
+      track: trackToDownload,
+      filePath: filePath,
+    );
+    _completedInSession++;
+
+    await _notificationService.showDownloadComplete(
+      trackName: item.track.name,
+      artistName: item.track.artistName,
+      completedCount: _completedInSession,
+      totalCount: _totalQueuedAtStart,
+      alreadyInLibrary: result['already_exists'] == true,
+    );
+
+    final backendTitle = result['title'] as String?;
+    final backendArtist = result['artist'] as String?;
+    final backendAlbum = result['album'] as String?;
+    final backendYear = result['release_date'] as String?;
+    final backendTrackNum = result['track_number'] as int?;
+    final backendDiscNum = result['disc_number'] as int?;
+    final backendTotalTracks = result['total_tracks'] as int?;
+    final backendTotalDiscs = result['total_discs'] as int?;
+    final backendISRC = result['isrc'] as String?;
+    final backendGenre = result['genre'] as String?;
+    final backendLabel = result['label'] as String?;
+    final backendCopyright = result['copyright'] as String?;
+    final backendComposer = result['composer'] as String?;
+    final resultSafFileName = result['file_name'] as String?;
+    final lowerFilePath = filePath.toLowerCase();
+    final isLossyOutput =
+        lowerFilePath.endsWith('.mp3') ||
+        lowerFilePath.endsWith('.opus') ||
+        lowerFilePath.endsWith('.ogg');
+
+    ref
+        .read(downloadHistoryProvider.notifier)
+        .addToHistory(
+          DownloadHistoryItem(
+            id: item.id,
+            trackName: (backendTitle != null && backendTitle.isNotEmpty)
+                ? backendTitle
+                : trackToDownload.name,
+            artistName: (backendArtist != null && backendArtist.isNotEmpty)
+                ? backendArtist
+                : trackToDownload.artistName,
+            albumName: (backendAlbum != null && backendAlbum.isNotEmpty)
+                ? backendAlbum
+                : trackToDownload.albumName,
+            albumArtist: normalizeOptionalString(trackToDownload.albumArtist),
+            coverUrl: normalizeCoverReference(trackToDownload.coverUrl),
+            filePath: filePath,
+            storageMode: context.storageMode,
+            downloadTreeUri: context.storageMode == 'saf'
+                ? context.downloadTreeUri
+                : null,
+            safRelativeDir: context.storageMode == 'saf'
+                ? context.safRelativeDir
+                : null,
+            safFileName: context.storageMode == 'saf'
+                ? ((resultSafFileName != null && resultSafFileName.isNotEmpty)
+                      ? resultSafFileName
+                      : context.safFileName)
+                : null,
+            safRepaired: false,
+            service: result['service'] as String? ?? item.service,
+            downloadedAt: DateTime.now(),
+            isrc: (backendISRC != null && backendISRC.isNotEmpty)
+                ? backendISRC
+                : trackToDownload.isrc,
+            spotifyId: trackToDownload.id,
+            trackNumber: (backendTrackNum != null && backendTrackNum > 0)
+                ? backendTrackNum
+                : trackToDownload.trackNumber,
+            totalTracks: (backendTotalTracks != null && backendTotalTracks > 0)
+                ? backendTotalTracks
+                : trackToDownload.totalTracks,
+            discNumber: (backendDiscNum != null && backendDiscNum > 0)
+                ? backendDiscNum
+                : trackToDownload.discNumber,
+            totalDiscs: (backendTotalDiscs != null && backendTotalDiscs > 0)
+                ? backendTotalDiscs
+                : trackToDownload.totalDiscs,
+            duration: trackToDownload.duration,
+            releaseDate: (backendYear != null && backendYear.isNotEmpty)
+                ? backendYear
+                : trackToDownload.releaseDate,
+            quality: actualQuality,
+            bitDepth: isLossyOutput ? null : actualBitDepth,
+            sampleRate: isLossyOutput ? null : actualSampleRate,
+            genre: normalizeOptionalString(backendGenre),
+            composer: (backendComposer != null && backendComposer.isNotEmpty)
+                ? backendComposer
+                : trackToDownload.composer,
+            label: normalizeOptionalString(backendLabel),
+            copyright: normalizeOptionalString(backendCopyright),
+          ),
+        );
+
+    removeItem(item.id);
+  }
+
+  Future<String?> _finalizeNativeWorkerDecryption({
+    required _NativeWorkerRequestContext context,
+    required Map<String, dynamic> result,
+    required String filePath,
+  }) async {
+    if (result['already_exists'] == true) {
+      return filePath;
+    }
+
+    final descriptor = DownloadDecryptionDescriptor.fromDownloadResult(result);
+    if (descriptor == null) {
+      return filePath;
+    }
+
+    _log.i(
+      'Native-worker encrypted stream detected, decrypting via ${descriptor.normalizedStrategy}...',
+    );
+
+    if (context.storageMode == 'saf' && isContentUri(filePath)) {
+      final treeUri = context.downloadTreeUri;
+      if (treeUri == null || treeUri.isEmpty) {
+        return null;
+      }
+      final tempPath = await _copySafToTemp(filePath);
+      if (tempPath == null) {
+        return null;
+      }
+
+      String? decryptedTempPath;
+      try {
+        decryptedTempPath = await FFmpegService.decryptWithDescriptor(
+          inputPath: tempPath,
+          descriptor: descriptor,
+          deleteOriginal: false,
+        );
+        if (decryptedTempPath == null) {
+          return null;
+        }
+
+        final dotIndex = decryptedTempPath.lastIndexOf('.');
+        final decryptedExt = dotIndex >= 0
+            ? decryptedTempPath.substring(dotIndex).toLowerCase()
+            : context.outputExt;
+        const allowedExt = <String>{'.flac', '.m4a', '.mp4', '.mp3', '.opus'};
+        final finalExt = allowedExt.contains(decryptedExt)
+            ? decryptedExt
+            : context.outputExt;
+        final rawFileName =
+            (result['file_name'] as String?) ?? context.safFileName ?? 'track';
+        final baseName = rawFileName.replaceFirst(RegExp(r'\.[^.]+$'), '');
+        final newFileName = '$baseName$finalExt';
+        final newUri = await _writeTempToSaf(
+          treeUri: treeUri,
+          relativeDir: context.safRelativeDir ?? '',
+          fileName: newFileName,
+          mimeType: _mimeTypeForExt(finalExt),
+          srcPath: decryptedTempPath,
+        );
+        if (newUri == null) {
+          return null;
+        }
+        if (newUri != filePath) {
+          await _deleteSafFile(filePath);
+        }
+        result['file_name'] = newFileName;
+        return newUri;
+      } finally {
+        try {
+          await File(tempPath).delete();
+        } catch (_) {}
+        if (decryptedTempPath != null && decryptedTempPath != tempPath) {
+          try {
+            await File(decryptedTempPath).delete();
+          } catch (_) {}
+        }
+      }
+    }
+
+    final decryptedPath = await FFmpegService.decryptWithDescriptor(
+      inputPath: filePath,
+      descriptor: descriptor,
+      deleteOriginal: true,
+    );
+    return decryptedPath;
+  }
+
+  Future<String?> _finalizeNativeWorkerHighConversion({
+    required _NativeWorkerRequestContext context,
+    required Map<String, dynamic> result,
+    required AppSettings settings,
+    required Track track,
+    required String filePath,
+  }) async {
+    if (context.quality != 'HIGH') {
+      return filePath;
+    }
+
+    final lowerPath = filePath.toLowerCase();
+    final resultFileName = (result['file_name'] as String?)?.toLowerCase();
+    final looksLikeM4a =
+        lowerPath.endsWith('.m4a') ||
+        lowerPath.endsWith('.mp4') ||
+        (resultFileName != null &&
+            (resultFileName.endsWith('.m4a') ||
+                resultFileName.endsWith('.mp4')));
+    if (!looksLikeM4a) {
+      return filePath;
+    }
+
+    final tidalHighFormat = settings.tidalHighFormat;
+    final format = tidalHighFormat.startsWith('opus') ? 'opus' : 'mp3';
+    final newExt = format == 'opus' ? '.opus' : '.mp3';
+    final bitrateDisplay = tidalHighFormat.contains('_')
+        ? '${tidalHighFormat.split('_').last}kbps'
+        : '320kbps';
+
+    Future<void> embedConvertedMetadata(String convertedPath) async {
+      if (!settings.embedMetadata) return;
+      await _embedMetadataToFile(
+        convertedPath,
+        track,
+        format: format,
+        genre: result['genre'] as String?,
+        label: result['label'] as String?,
+        copyright: result['copyright'] as String?,
+        downloadService: context.item.service,
+      );
+    }
+
+    if (context.storageMode == 'saf' && isContentUri(filePath)) {
+      final treeUri = context.downloadTreeUri;
+      if (treeUri == null || treeUri.isEmpty) {
+        return null;
+      }
+      final tempPath = await _copySafToTemp(filePath);
+      if (tempPath == null) {
+        return null;
+      }
+
+      String? convertedPath;
+      try {
+        convertedPath = await FFmpegService.convertM4aToLossy(
+          tempPath,
+          format: format,
+          bitrate: tidalHighFormat,
+          deleteOriginal: false,
+        );
+        if (convertedPath == null) {
+          return null;
+        }
+        await embedConvertedMetadata(convertedPath);
+        final rawFileName =
+            (result['file_name'] as String?) ?? context.safFileName ?? 'track';
+        final baseName = rawFileName.replaceFirst(RegExp(r'\.[^.]+$'), '');
+        final newFileName = '$baseName$newExt';
+        final newUri = await _writeTempToSaf(
+          treeUri: treeUri,
+          relativeDir: context.safRelativeDir ?? '',
+          fileName: newFileName,
+          mimeType: _mimeTypeForExt(newExt),
+          srcPath: convertedPath,
+        );
+        if (newUri == null) {
+          return null;
+        }
+        if (newUri != filePath) {
+          await _deleteSafFile(filePath);
+        }
+        result['file_name'] = newFileName;
+        result['_native_actual_quality'] =
+            '${format.toUpperCase()} $bitrateDisplay';
+        return newUri;
+      } finally {
+        try {
+          await File(tempPath).delete();
+        } catch (_) {}
+        if (convertedPath != null) {
+          try {
+            await File(convertedPath).delete();
+          } catch (_) {}
+        }
+      }
+    }
+
+    final convertedPath = await FFmpegService.convertM4aToLossy(
+      filePath,
+      format: format,
+      bitrate: tidalHighFormat,
+      deleteOriginal: true,
+    );
+    if (convertedPath == null) {
+      return null;
+    }
+    await embedConvertedMetadata(convertedPath);
+    result['_native_actual_quality'] =
+        '${format.toUpperCase()} $bitrateDisplay';
+    return convertedPath;
+  }
+
+  Future<String?> _finalizeNativeWorkerContainerConversion({
+    required _NativeWorkerRequestContext context,
+    required Map<String, dynamic> result,
+    required AppSettings settings,
+    required Track track,
+    required String filePath,
+  }) async {
+    if (context.quality == 'HIGH' || context.outputExt != '.flac') {
+      return filePath;
+    }
+    final lowerPath = filePath.toLowerCase();
+    final resultFileName = (result['file_name'] as String?)?.toLowerCase();
+    final looksLikeM4a =
+        lowerPath.endsWith('.m4a') ||
+        lowerPath.endsWith('.mp4') ||
+        (resultFileName != null &&
+            (resultFileName.endsWith('.m4a') ||
+                resultFileName.endsWith('.mp4')));
+    if (!looksLikeM4a && !isContentUri(filePath)) {
+      return filePath;
+    }
+
+    Future<void> embedFlacMetadata(String flacPath) async {
+      if (!settings.embedMetadata) return;
+      await _embedMetadataToFile(
+        flacPath,
+        track,
+        format: 'flac',
+        genre: result['genre'] as String?,
+        label: result['label'] as String?,
+        copyright: result['copyright'] as String?,
+        downloadService: context.item.service,
+        writeExternalLrc: context.storageMode != 'saf',
+      );
+    }
+
+    if (context.storageMode == 'saf' && isContentUri(filePath)) {
+      final treeUri = context.downloadTreeUri;
+      if (treeUri == null || treeUri.isEmpty) {
+        return null;
+      }
+      final tempPath = await _copySafToTemp(filePath);
+      if (tempPath == null) {
+        return null;
+      }
+
+      String? flacPath;
+      try {
+        flacPath = await FFmpegService.convertM4aToFlac(tempPath);
+        if (flacPath == null) {
+          return null;
+        }
+        await embedFlacMetadata(flacPath);
+        final rawFileName =
+            (result['file_name'] as String?) ?? context.safFileName ?? 'track';
+        final baseName = rawFileName.replaceFirst(RegExp(r'\.[^.]+$'), '');
+        final newFileName = '$baseName.flac';
+        final newUri = await _writeTempToSaf(
+          treeUri: treeUri,
+          relativeDir: context.safRelativeDir ?? '',
+          fileName: newFileName,
+          mimeType: _mimeTypeForExt('.flac'),
+          srcPath: flacPath,
+        );
+        if (newUri == null) {
+          return null;
+        }
+        if (newUri != filePath) {
+          await _deleteSafFile(filePath);
+        }
+        result['file_name'] = newFileName;
+        return newUri;
+      } finally {
+        try {
+          await File(tempPath).delete();
+        } catch (_) {}
+        if (flacPath != null) {
+          try {
+            await File(flacPath).delete();
+          } catch (_) {}
+        }
+      }
+    }
+
+    final flacPath = await FFmpegService.convertM4aToFlac(filePath);
+    if (flacPath == null) {
+      return null;
+    }
+    await embedFlacMetadata(flacPath);
+    return flacPath;
+  }
+
+  Future<void> _writeNativeWorkerReplayGain({
+    required _NativeWorkerRequestContext context,
+    required AppSettings settings,
+    required Track track,
+    required String filePath,
+  }) async {
+    if (!settings.embedReplayGain) {
+      return;
+    }
+    if (context.outputExt != '.flac' && context.outputExt != '.m4a') {
+      return;
+    }
+
+    try {
+      final rgResult = await FFmpegService.scanReplayGain(filePath);
+      if (rgResult == null) {
+        return;
+      }
+      await PlatformBridge.editFileMetadata(filePath, {
+        'replaygain_track_gain': rgResult.trackGain,
+        'replaygain_track_peak': rgResult.trackPeak,
+      });
+      _storeTrackReplayGainForAlbum(track, filePath, rgResult);
+      _updateAlbumRgFilePath(track, filePath);
+      await _checkAndWriteAlbumReplayGain(track);
+      _log.d(
+        'Native-worker ReplayGain written: gain=${rgResult.trackGain}, peak=${rgResult.trackPeak}',
+      );
+    } catch (e) {
+      _log.w('Failed to write native-worker ReplayGain: $e');
+    }
+  }
+
+  Future<void> _saveNativeWorkerExternalLrc({
+    required _NativeWorkerRequestContext context,
+    required Map<String, dynamic> result,
+    required AppSettings settings,
+    required Track track,
+    required String filePath,
+  }) async {
+    final lyricsMode = settings.lyricsMode;
+    final shouldSaveExternalLrc =
+        settings.embedMetadata &&
+        settings.embedLyrics &&
+        !_shouldSkipLyrics(
+          ref.read(extensionProvider),
+          track.source,
+          context.item.service,
+        ) &&
+        (lyricsMode == 'external' || lyricsMode == 'both');
+    if (!shouldSaveExternalLrc) {
+      return;
+    }
+
+    String? lrcContent = result['lyrics_lrc'] as String?;
+    if (lrcContent == null || lrcContent.isEmpty) {
+      try {
+        lrcContent = await PlatformBridge.getLyricsLRC(
+          track.id,
+          track.name,
+          track.artistName,
+          durationMs: track.duration * 1000,
+        );
+      } catch (e) {
+        _log.w('Failed to fetch native-worker external LRC: $e');
+      }
+    }
+    if (lrcContent == null || lrcContent.isEmpty) {
+      return;
+    }
+
+    if (context.storageMode == 'saf' && isContentUri(filePath)) {
+      final treeUri = context.downloadTreeUri;
+      if (treeUri == null || treeUri.isEmpty) {
+        return;
+      }
+      final resultFileName = result['file_name'] as String?;
+      final fileName = (resultFileName != null && resultFileName.isNotEmpty)
+          ? resultFileName
+          : context.safFileName;
+      final baseName = fileName != null && fileName.isNotEmpty
+          ? fileName.replaceFirst(RegExp(r'\.[^.]+$'), '')
+          : await PlatformBridge.sanitizeFilename(
+              '${track.artistName} - ${track.name}',
+            );
+      await _writeLrcToSaf(
+        treeUri: treeUri,
+        relativeDir: context.safRelativeDir ?? '',
+        baseName: baseName,
+        lrcContent: lrcContent,
+      );
+      return;
+    }
+
+    try {
+      final lrcPath = filePath.replaceAll(RegExp(r'\.[^.]+$'), '.lrc');
+      final safeLrcPath = lrcPath == filePath ? '$filePath.lrc' : lrcPath;
+      await File(safeLrcPath).writeAsString(lrcContent);
+      _log.d('Native-worker external LRC saved: $safeLrcPath');
+    } catch (e) {
+      _log.w('Failed to save native-worker external LRC: $e');
+    }
+  }
+
+  DownloadErrorType _downloadErrorTypeFromBackend(String? errorType) {
+    switch (errorType) {
+      case 'not_found':
+        return DownloadErrorType.notFound;
+      case 'rate_limit':
+        return DownloadErrorType.rateLimit;
+      case 'network':
+        return DownloadErrorType.network;
+      case 'permission':
+        return DownloadErrorType.permission;
+      default:
+        return DownloadErrorType.unknown;
+    }
+  }
+
   Future<void> _processQueue() async {
     if (state.isProcessing) return;
 
@@ -4364,6 +5756,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       _startConnectivityMonitoring();
     } else {
       _stopConnectivityMonitoring();
+    }
+
+    if (await _tryProcessQueueWithAndroidNativeWorker(settings)) {
+      return;
     }
 
     state = state.copyWith(isProcessing: true);
@@ -4971,6 +6367,11 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       final hasActiveExtensions = extensionState.extensions.any(
         (e) => e.enabled,
       );
+      final postProcessingEnabled =
+          settings.useExtensionProviders &&
+          extensionState.extensions.any(
+            (e) => e.enabled && e.hasPostProcessing,
+          );
       final useExtensions =
           settings.useExtensionProviders && hasActiveExtensions;
 
@@ -5059,13 +6460,16 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
               ),
           embedMaxQualityCover:
               metadataEmbeddingEnabled && settings.maxQualityCover,
+          embedReplayGain: settings.embedReplayGain,
+          postProcessingEnabled: postProcessingEnabled,
+          tidalHighFormat: settings.tidalHighFormat,
           trackNumber: normalizedTrackNumber,
           discNumber: normalizedDiscNumber,
           totalTracks: trackToDownload.totalTracks ?? 0,
           totalDiscs: trackToDownload.totalDiscs ?? 0,
           releaseDate: trackToDownload.releaseDate ?? '',
           itemId: item.id,
-          durationMs: trackToDownload.duration,
+          durationMs: trackToDownload.duration * 1000,
           source: trackToDownload.source ?? '',
           genre: genre ?? '',
           label: label ?? '',
@@ -6427,15 +7831,18 @@ class DownloadQueueLookup {
       activeDownloadsCount = 0;
 
   DownloadQueueLookup._({
-    required this.byTrackId,
-    required this.byItemId,
-    required this.indexByItemId,
-    required this.itemIds,
+    required Map<String, DownloadItem> byTrackId,
+    required Map<String, DownloadItem> byItemId,
+    required Map<String, int> indexByItemId,
+    required List<String> itemIds,
     required this.queuedCount,
     required this.completedCount,
     required this.failedCount,
     required this.activeDownloadsCount,
-  });
+  }) : byTrackId = Map.unmodifiable(byTrackId),
+       byItemId = Map.unmodifiable(byItemId),
+       indexByItemId = Map.unmodifiable(indexByItemId),
+       itemIds = List.unmodifiable(itemIds);
 
   factory DownloadQueueLookup.fromItems(List<DownloadItem> items) {
     final byTrackId = <String, DownloadItem>{};
@@ -6470,7 +7877,9 @@ class DownloadQueueLookup {
   }
 
   static bool _countsAsQueued(DownloadStatus status) =>
-      status == DownloadStatus.queued || status == DownloadStatus.downloading;
+      status == DownloadStatus.queued ||
+      status == DownloadStatus.downloading ||
+      status == DownloadStatus.finalizing;
 
   static int _deltaForStatus({
     required DownloadStatus previous,
@@ -6556,6 +7965,11 @@ class DownloadQueueLookup {
       activeDownloadsCount: nextActiveDownloadsCount,
     );
   }
+}
+
+class _NativeWorkerStartupTimeout implements Exception {
+  @override
+  String toString() => 'Native worker did not publish run snapshot';
 }
 
 final downloadQueueLookupProvider = Provider<DownloadQueueLookup>((ref) {

@@ -236,6 +236,7 @@ void main() {
         musixmatchLanguage: 'id',
         lastSeenVersion: '4.5.0',
         deduplicateDownloads: false,
+        nativeDownloadWorkerEnabled: true,
       );
 
       final decoded = AppSettings.fromJson(settings.toJson());
@@ -255,6 +256,7 @@ void main() {
       expect(decoded.musixmatchLanguage, 'id');
       expect(decoded.lastSeenVersion, '4.5.0');
       expect(decoded.deduplicateDownloads, isFalse);
+      expect(decoded.nativeDownloadWorkerEnabled, isTrue);
     });
   });
 
@@ -300,6 +302,9 @@ void main() {
         artistTagMode: artistTagModeSplitVorbis,
         embedLyrics: false,
         embedMaxQualityCover: false,
+        embedReplayGain: true,
+        postProcessingEnabled: true,
+        tidalHighFormat: 'opus_256',
         trackNumber: 7,
         discNumber: 2,
         totalTracks: 12,
@@ -327,6 +332,7 @@ void main() {
       );
 
       expect(payload.toJson(), {
+        'contract_version': DownloadRequestPayload.nativeWorkerContractVersion,
         'isrc': 'ISRC123',
         'service': 'tidal',
         'spotify_id': 'spotify:track:1',
@@ -342,6 +348,9 @@ void main() {
         'artist_tag_mode': artistTagModeSplitVorbis,
         'embed_lyrics': false,
         'embed_max_quality_cover': false,
+        'embed_replaygain': true,
+        'post_processing_enabled': true,
+        'tidal_high_format': 'opus_256',
         'track_number': 7,
         'disc_number': 2,
         'total_tracks': 12,
@@ -365,6 +374,8 @@ void main() {
         'saf_relative_dir': 'Album',
         'saf_file_name': 'Song.flac',
         'saf_output_ext': 'flac',
+        'stage_saf_output': false,
+        'requires_container_conversion': false,
         'songlink_region': 'ID',
       });
     });

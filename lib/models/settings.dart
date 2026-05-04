@@ -58,6 +58,8 @@ class AppSettings {
   networkCompatibilityMode; // Try HTTP + allow invalid TLS cert for API requests
   final String
   songLinkRegion; // SongLink userCountry region code used for platform lookup
+  final bool
+  nativeDownloadWorkerEnabled; // Experimental Android service-owned worker
 
   final bool localLibraryEnabled; // Enable local library scanning
   final String localLibraryPath; // Path to scan for audio files
@@ -133,6 +135,7 @@ class AppSettings {
     this.downloadNetworkMode = 'any',
     this.networkCompatibilityMode = false,
     this.songLinkRegion = 'US',
+    this.nativeDownloadWorkerEnabled = false,
     this.localLibraryEnabled = false,
     this.localLibraryPath = '',
     this.localLibraryBookmark = '',
@@ -196,6 +199,7 @@ class AppSettings {
     String? downloadNetworkMode,
     bool? networkCompatibilityMode,
     String? songLinkRegion,
+    bool? nativeDownloadWorkerEnabled,
     bool? localLibraryEnabled,
     String? localLibraryPath,
     String? localLibraryBookmark,
@@ -269,6 +273,8 @@ class AppSettings {
       networkCompatibilityMode:
           networkCompatibilityMode ?? this.networkCompatibilityMode,
       songLinkRegion: songLinkRegion ?? this.songLinkRegion,
+      nativeDownloadWorkerEnabled:
+          nativeDownloadWorkerEnabled ?? this.nativeDownloadWorkerEnabled,
       localLibraryEnabled: localLibraryEnabled ?? this.localLibraryEnabled,
       localLibraryPath: localLibraryPath ?? this.localLibraryPath,
       localLibraryBookmark: localLibraryBookmark ?? this.localLibraryBookmark,

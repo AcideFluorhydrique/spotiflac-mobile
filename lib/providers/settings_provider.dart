@@ -569,6 +569,11 @@ class SettingsNotifier extends Notifier<AppSettings> {
     _saveSettings();
   }
 
+  void setNativeDownloadWorkerEnabled(bool enabled) {
+    state = state.copyWith(nativeDownloadWorkerEnabled: enabled);
+    _saveSettings();
+  }
+
   void setLocalLibraryEnabled(bool enabled) {
     state = state.copyWith(localLibraryEnabled: enabled);
     _saveSettings();

@@ -837,6 +837,35 @@ class PlatformBridge {
     return result as bool;
   }
 
+  static Future<void> startNativeDownloadWorker({
+    required List<Map<String, dynamic>> requests,
+    Map<String, dynamic> settings = const {},
+  }) async {
+    await _channel.invokeMethod('startNativeDownloadWorker', {
+      'requests_json': jsonEncode(requests),
+      'settings_json': jsonEncode(settings),
+    });
+  }
+
+  static Future<void> pauseNativeDownloadWorker() async {
+    await _channel.invokeMethod('pauseNativeDownloadWorker');
+  }
+
+  static Future<void> resumeNativeDownloadWorker() async {
+    await _channel.invokeMethod('resumeNativeDownloadWorker');
+  }
+
+  static Future<void> cancelNativeDownloadWorker() async {
+    await _channel.invokeMethod('cancelNativeDownloadWorker');
+  }
+
+  static Future<Map<String, dynamic>> getNativeDownloadWorkerSnapshot() async {
+    final result = await _channel.invokeMethod(
+      'getNativeDownloadWorkerSnapshot',
+    );
+    return _decodeMapResult(result);
+  }
+
   static Future<void> preWarmTrackCache(
     List<Map<String, String>> tracks,
   ) async {

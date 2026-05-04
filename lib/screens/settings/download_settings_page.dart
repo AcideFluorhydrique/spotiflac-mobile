@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
@@ -23,6 +25,7 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
     final hasDownloadExtensions = extensionState.extensions.any(
       (extension) => extension.enabled && extension.hasDownloadProvider,
     );
+    final nativeWorkerAvailable = Platform.isAndroid && hasDownloadExtensions;
     final colorScheme = Theme.of(context).colorScheme;
     final topPadding = normalizedHeaderTopPadding(context);
 
@@ -141,6 +144,22 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
                       settings.downloadNetworkMode,
                     ),
                   ),
+                  if (Platform.isAndroid)
+                    SettingsSwitchItem(
+                      icon: Icons.downloading_outlined,
+                      title: 'Native download worker',
+                      titleTrailing: const _BetaBadge(),
+                      subtitle: hasDownloadExtensions
+                          ? 'Beta Android service worker for extension downloads'
+                          : context.l10n.extensionsNoDownloadProvider,
+                      value:
+                          settings.nativeDownloadWorkerEnabled &&
+                          nativeWorkerAvailable,
+                      enabled: nativeWorkerAvailable,
+                      onChanged: (value) => ref
+                          .read(settingsProvider.notifier)
+                          .setNativeDownloadWorkerEnabled(value),
+                    ),
                   SettingsSwitchItem(
                     icon: Icons.security_outlined,
                     title: context.l10n.downloadNetworkCompatibilityMode,
@@ -593,6 +612,29 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
 }
 
 // ── Private widgets (reused from original) ─────────────────────────────────
+
+class _BetaBadge extends StatelessWidget {
+  const _BetaBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: colorScheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        'BETA',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: colorScheme.onTertiaryContainer,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
 
 class _ServiceSelector extends ConsumerWidget {
   final String currentService;

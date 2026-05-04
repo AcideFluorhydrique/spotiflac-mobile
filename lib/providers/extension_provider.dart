@@ -263,6 +263,9 @@ class Extension {
   bool get hasServiceHealth => serviceHealth.isNotEmpty;
   bool get hasHomeFeed => capabilities['homeFeed'] == true;
   bool get hasBrowseCategories => capabilities['browseCategories'] == true;
+  bool get requiresNativeContainerConversion =>
+      capabilities['requiresContainerConversion'] == true ||
+      capabilities['requiresNativeContainerConversion'] == true;
   List<String> get replacesBuiltInProviders {
     final value = capabilities['replacesBuiltInProviders'];
     if (value is! List) return const [];

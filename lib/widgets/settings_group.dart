@@ -4,20 +4,22 @@ class SettingsGroup extends StatelessWidget {
   final List<Widget> children;
   final EdgeInsetsGeometry? margin;
 
-  const SettingsGroup({
-    super.key,
-    required this.children,
-    this.margin,
-  });
+  const SettingsGroup({super.key, required this.children, this.margin});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    final cardColor = isDark 
-        ? Color.alphaBlend(Colors.white.withValues(alpha: 0.08), colorScheme.surface)
-        : Color.alphaBlend(Colors.black.withValues(alpha: 0.04), colorScheme.surface);
+
+    final cardColor = isDark
+        ? Color.alphaBlend(
+            Colors.white.withValues(alpha: 0.08),
+            colorScheme.surface,
+          )
+        : Color.alphaBlend(
+            Colors.black.withValues(alpha: 0.04),
+            colorScheme.surface,
+          );
 
     return Container(
       margin: margin ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -28,10 +30,7 @@ class SettingsGroup extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Material(
         color: Colors.transparent,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: children,
-        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: children),
       ),
     );
   }
@@ -58,7 +57,7 @@ class SettingsItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -78,17 +77,13 @@ class SettingsItem extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
+                      Text(title, style: Theme.of(context).textTheme.bodyLarge),
                       if (subtitle != null) ...[
                         const SizedBox(height: 2),
                         Text(
                           subtitle!,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ],
@@ -99,7 +94,10 @@ class SettingsItem extends StatelessWidget {
                   trailing!,
                 ] else if (onTap != null) ...[
                   const SizedBox(width: 8),
-                  Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant),
+                  Icon(
+                    Icons.chevron_right,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ],
               ],
             ),
@@ -121,6 +119,7 @@ class SettingsItem extends StatelessWidget {
 class SettingsSwitchItem extends StatelessWidget {
   final IconData? icon;
   final String title;
+  final Widget? titleTrailing;
   final String? subtitle;
   final bool value;
   final ValueChanged<bool>? onChanged;
@@ -131,6 +130,7 @@ class SettingsSwitchItem extends StatelessWidget {
     super.key,
     this.icon,
     required this.title,
+    this.titleTrailing,
     this.subtitle,
     required this.value,
     this.onChanged,
@@ -142,7 +142,7 @@ class SettingsSwitchItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDisabled = !enabled || onChanged == null;
-    
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -157,26 +157,49 @@ class SettingsSwitchItem extends StatelessWidget {
               child: Row(
                 children: [
                   if (icon != null) ...[
-                    Icon(icon, color: isDisabled ? colorScheme.outline : colorScheme.onSurfaceVariant, size: 24),
+                    Icon(
+                      icon,
+                      color: isDisabled
+                          ? colorScheme.outline
+                          : colorScheme.onSurfaceVariant,
+                      size: 24,
+                    ),
                     const SizedBox(width: 16),
                   ],
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          title,
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: isDisabled ? colorScheme.outline : null,
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                title,
+                                style: Theme.of(context).textTheme.bodyLarge
+                                    ?.copyWith(
+                                      color: isDisabled
+                                          ? colorScheme.outline
+                                          : null,
+                                    ),
+                              ),
+                            ),
+                            if (titleTrailing != null) ...[
+                              const SizedBox(width: 8),
+                              titleTrailing!,
+                            ],
+                          ],
                         ),
                         if (subtitle != null) ...[
                           const SizedBox(height: 2),
                           Text(
                             subtitle!,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: isDisabled ? colorScheme.outline : colorScheme.onSurfaceVariant,
-                            ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: isDisabled
+                                      ? colorScheme.outline
+                                      : colorScheme.onSurfaceVariant,
+                                ),
                           ),
                         ],
                       ],

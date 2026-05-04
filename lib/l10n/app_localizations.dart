@@ -129,7 +129,7 @@ abstract class AppLocalizations {
   /// App name - DO NOT TRANSLATE
   ///
   /// In en, this message translates to:
-  /// **'SpotiFLAC'**
+  /// **'SpotiFLAC Mobile'**
   String get appName;
 
   /// Bottom navigation - Home tab

@@ -262,32 +262,52 @@ func resolvePreferredTrackIDForExtension(ext *loadedExtension, req DownloadReque
 	return candidates[0]
 }
 
+func normalizeDownloadResultExtension(candidates ...string) string {
+	for _, candidate := range candidates {
+		ext := strings.TrimSpace(strings.ToLower(candidate))
+		if ext == "" {
+			continue
+		}
+		if !strings.HasPrefix(ext, ".") {
+			ext = "." + ext
+		}
+		if ext == ".mp4" {
+			return ".m4a"
+		}
+		return ext
+	}
+	return ""
+}
+
 func normalizeExtensionDownloadResult(result *ExtDownloadResult) (DownloadResult, bool) {
 	if result == nil {
 		return DownloadResult{}, false
 	}
 
 	downloadResult := DownloadResult{
-		FilePath:      strings.TrimSpace(result.FilePath),
-		BitDepth:      result.BitDepth,
-		SampleRate:    result.SampleRate,
-		Title:         result.Title,
-		Artist:        result.Artist,
-		Album:         result.Album,
-		ReleaseDate:   result.ReleaseDate,
-		TrackNumber:   result.TrackNumber,
-		TotalTracks:   result.TotalTracks,
-		DiscNumber:    result.DiscNumber,
-		TotalDiscs:    result.TotalDiscs,
-		ISRC:          result.ISRC,
-		CoverURL:      result.CoverURL,
-		Genre:         result.Genre,
-		Label:         result.Label,
-		Copyright:     result.Copyright,
-		Composer:      result.Composer,
-		LyricsLRC:     result.LyricsLRC,
-		DecryptionKey: result.DecryptionKey,
-		Decryption:    normalizeDownloadDecryptionInfo(result.Decryption, result.DecryptionKey),
+		FilePath:                    strings.TrimSpace(result.FilePath),
+		BitDepth:                    result.BitDepth,
+		SampleRate:                  result.SampleRate,
+		Title:                       result.Title,
+		Artist:                      result.Artist,
+		Album:                       result.Album,
+		ReleaseDate:                 result.ReleaseDate,
+		TrackNumber:                 result.TrackNumber,
+		TotalTracks:                 result.TotalTracks,
+		DiscNumber:                  result.DiscNumber,
+		TotalDiscs:                  result.TotalDiscs,
+		ISRC:                        result.ISRC,
+		CoverURL:                    result.CoverURL,
+		Genre:                       result.Genre,
+		Label:                       result.Label,
+		Copyright:                   result.Copyright,
+		Composer:                    result.Composer,
+		LyricsLRC:                   result.LyricsLRC,
+		DecryptionKey:               result.DecryptionKey,
+		Decryption:                  normalizeDownloadDecryptionInfo(result.Decryption, result.DecryptionKey),
+		ActualExtension:             normalizeDownloadResultExtension(result.ActualExtension, result.OutputExtension),
+		ActualContainer:             strings.TrimSpace(result.ActualContainer),
+		RequiresContainerConversion: result.RequiresContainerConversion,
 	}
 
 	alreadyExists := result.AlreadyExists
@@ -358,6 +378,15 @@ func overlayExtensionDownloadMetadata(resp *DownloadResponse, result *ExtDownloa
 	}
 	if normalized := normalizeDownloadDecryptionInfo(result.Decryption, result.DecryptionKey); normalized != nil {
 		resp.Decryption = normalized
+	}
+	if ext := normalizeDownloadResultExtension(result.ActualExtension, result.OutputExtension); ext != "" {
+		resp.ActualExtension = ext
+	}
+	if container := strings.TrimSpace(result.ActualContainer); container != "" {
+		resp.ActualContainer = container
+	}
+	if result.RequiresContainerConversion {
+		resp.RequiresContainerConversion = true
 	}
 }
 
@@ -446,24 +475,28 @@ type ExtDownloadResult struct {
 	ErrorMessage  string `json:"error_message,omitempty"`
 	ErrorType     string `json:"error_type,omitempty"`
 
-	Title         string                  `json:"title,omitempty"`
-	Artist        string                  `json:"artist,omitempty"`
-	Album         string                  `json:"album,omitempty"`
-	AlbumArtist   string                  `json:"album_artist,omitempty"`
-	TrackNumber   int                     `json:"track_number,omitempty"`
-	DiscNumber    int                     `json:"disc_number,omitempty"`
-	TotalTracks   int                     `json:"total_tracks,omitempty"`
-	TotalDiscs    int                     `json:"total_discs,omitempty"`
-	ReleaseDate   string                  `json:"release_date,omitempty"`
-	CoverURL      string                  `json:"cover_url,omitempty"`
-	ISRC          string                  `json:"isrc,omitempty"`
-	Genre         string                  `json:"genre,omitempty"`
-	Label         string                  `json:"label,omitempty"`
-	Copyright     string                  `json:"copyright,omitempty"`
-	Composer      string                  `json:"composer,omitempty"`
-	LyricsLRC     string                  `json:"lyrics_lrc,omitempty"`
-	DecryptionKey string                  `json:"decryption_key,omitempty"`
-	Decryption    *DownloadDecryptionInfo `json:"decryption,omitempty"`
+	Title                       string                  `json:"title,omitempty"`
+	Artist                      string                  `json:"artist,omitempty"`
+	Album                       string                  `json:"album,omitempty"`
+	AlbumArtist                 string                  `json:"album_artist,omitempty"`
+	TrackNumber                 int                     `json:"track_number,omitempty"`
+	DiscNumber                  int                     `json:"disc_number,omitempty"`
+	TotalTracks                 int                     `json:"total_tracks,omitempty"`
+	TotalDiscs                  int                     `json:"total_discs,omitempty"`
+	ReleaseDate                 string                  `json:"release_date,omitempty"`
+	CoverURL                    string                  `json:"cover_url,omitempty"`
+	ISRC                        string                  `json:"isrc,omitempty"`
+	Genre                       string                  `json:"genre,omitempty"`
+	Label                       string                  `json:"label,omitempty"`
+	Copyright                   string                  `json:"copyright,omitempty"`
+	Composer                    string                  `json:"composer,omitempty"`
+	LyricsLRC                   string                  `json:"lyrics_lrc,omitempty"`
+	DecryptionKey               string                  `json:"decryption_key,omitempty"`
+	Decryption                  *DownloadDecryptionInfo `json:"decryption,omitempty"`
+	ActualExtension             string                  `json:"actual_extension,omitempty"`
+	OutputExtension             string                  `json:"output_extension,omitempty"`
+	ActualContainer             string                  `json:"actual_container,omitempty"`
+	RequiresContainerConversion bool                    `json:"requires_container_conversion,omitempty"`
 }
 
 const genericFFmpegMOVDecryptionStrategy = "ffmpeg.mov_key"
@@ -887,31 +920,39 @@ func parseExtensionDownloadDecryptionValue(vm *goja.Runtime, value goja.Value) *
 func parseExtensionDownloadResultValue(vm *goja.Runtime, value goja.Value) ExtDownloadResult {
 	obj := value.ToObject(vm)
 	return ExtDownloadResult{
-		Success:       gojaObjectBool(obj, "success"),
-		FilePath:      gojaObjectString(obj, "file_path", "filePath", "path"),
-		AlreadyExists: gojaObjectBool(obj, "already_exists", "alreadyExists"),
-		BitDepth:      gojaObjectInt(obj, "bit_depth", "bitDepth"),
-		SampleRate:    gojaObjectInt(obj, "sample_rate", "sampleRate"),
-		ErrorMessage:  gojaObjectString(obj, "error_message", "errorMessage", "error"),
-		ErrorType:     gojaObjectString(obj, "error_type", "errorType"),
-		Title:         gojaObjectString(obj, "title"),
-		Artist:        gojaObjectString(obj, "artist"),
-		Album:         gojaObjectString(obj, "album"),
-		AlbumArtist:   gojaObjectString(obj, "album_artist", "albumArtist"),
-		TrackNumber:   gojaObjectInt(obj, "track_number", "trackNumber"),
-		DiscNumber:    gojaObjectInt(obj, "disc_number", "discNumber"),
-		TotalTracks:   gojaObjectInt(obj, "total_tracks", "totalTracks"),
-		TotalDiscs:    gojaObjectInt(obj, "total_discs", "totalDiscs"),
-		ReleaseDate:   gojaObjectString(obj, "release_date", "releaseDate"),
-		CoverURL:      gojaObjectString(obj, "cover_url", "coverUrl"),
-		ISRC:          gojaObjectString(obj, "isrc"),
-		Genre:         gojaObjectString(obj, "genre"),
-		Label:         gojaObjectString(obj, "label"),
-		Copyright:     gojaObjectString(obj, "copyright"),
-		Composer:      gojaObjectString(obj, "composer"),
-		LyricsLRC:     gojaObjectString(obj, "lyrics_lrc", "lyricsLrc"),
-		DecryptionKey: gojaObjectString(obj, "decryption_key", "decryptionKey"),
-		Decryption:    parseExtensionDownloadDecryptionValue(vm, gojaObjectValue(obj, "decryption")),
+		Success:         gojaObjectBool(obj, "success"),
+		FilePath:        gojaObjectString(obj, "file_path", "filePath", "path"),
+		AlreadyExists:   gojaObjectBool(obj, "already_exists", "alreadyExists"),
+		BitDepth:        gojaObjectInt(obj, "bit_depth", "bitDepth"),
+		SampleRate:      gojaObjectInt(obj, "sample_rate", "sampleRate"),
+		ErrorMessage:    gojaObjectString(obj, "error_message", "errorMessage", "error"),
+		ErrorType:       gojaObjectString(obj, "error_type", "errorType"),
+		Title:           gojaObjectString(obj, "title"),
+		Artist:          gojaObjectString(obj, "artist"),
+		Album:           gojaObjectString(obj, "album"),
+		AlbumArtist:     gojaObjectString(obj, "album_artist", "albumArtist"),
+		TrackNumber:     gojaObjectInt(obj, "track_number", "trackNumber"),
+		DiscNumber:      gojaObjectInt(obj, "disc_number", "discNumber"),
+		TotalTracks:     gojaObjectInt(obj, "total_tracks", "totalTracks"),
+		TotalDiscs:      gojaObjectInt(obj, "total_discs", "totalDiscs"),
+		ReleaseDate:     gojaObjectString(obj, "release_date", "releaseDate"),
+		CoverURL:        gojaObjectString(obj, "cover_url", "coverUrl"),
+		ISRC:            gojaObjectString(obj, "isrc"),
+		Genre:           gojaObjectString(obj, "genre"),
+		Label:           gojaObjectString(obj, "label"),
+		Copyright:       gojaObjectString(obj, "copyright"),
+		Composer:        gojaObjectString(obj, "composer"),
+		LyricsLRC:       gojaObjectString(obj, "lyrics_lrc", "lyricsLrc"),
+		DecryptionKey:   gojaObjectString(obj, "decryption_key", "decryptionKey"),
+		Decryption:      parseExtensionDownloadDecryptionValue(vm, gojaObjectValue(obj, "decryption")),
+		ActualExtension: gojaObjectString(obj, "actual_extension", "actualExtension"),
+		OutputExtension: gojaObjectString(obj, "output_extension", "outputExtension"),
+		ActualContainer: gojaObjectString(obj, "actual_container", "actualContainer", "container"),
+		RequiresContainerConversion: gojaObjectBool(
+			obj,
+			"requires_container_conversion",
+			"requiresContainerConversion",
+		),
 	}
 }
 

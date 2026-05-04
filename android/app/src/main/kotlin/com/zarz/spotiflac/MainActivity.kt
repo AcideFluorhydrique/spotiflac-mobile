@@ -311,21 +311,6 @@ class MainActivity: FlutterFragmentActivity() {
         }
     }
 
-    private fun forceFilenameExt(name: String, outputExt: String): String {
-        val normalizedExt = normalizeExt(outputExt)
-        if (normalizedExt.isBlank()) return sanitizeFilename(name)
-
-        val safeName = sanitizeFilename(name)
-        val lower = safeName.lowercase(Locale.ROOT)
-        val knownExts = listOf(".flac", ".m4a", ".mp4", ".mp3", ".opus", ".lrc")
-        for (knownExt in knownExts) {
-            if (lower.endsWith(knownExt)) {
-                return safeName.dropLast(knownExt.length) + normalizedExt
-            }
-        }
-        return safeName + normalizedExt
-    }
-
     private fun sanitizeFilename(name: String): String {
         var sanitized = name
             .replace("/", " ")
@@ -700,16 +685,6 @@ class MainActivity: FlutterFragmentActivity() {
         return obj.toString()
     }
 
-    private fun buildSafFileName(req: JSONObject, outputExt: String): String {
-        val provided = req.optString("saf_file_name", "")
-        if (provided.isNotBlank()) return forceFilenameExt(provided, outputExt)
-
-        val trackName = req.optString("track_name", "track")
-        val artistName = req.optString("artist_name", "")
-        val baseName = if (artistName.isNotBlank()) "$artistName - $trackName" else trackName
-        return forceFilenameExt(baseName, outputExt)
-    }
-
     private fun errorJson(message: String): String {
         val obj = JSONObject()
         obj.put("success", false)
@@ -989,112 +964,6 @@ class MainActivity: FlutterFragmentActivity() {
             }
         } ?: return false
         return true
-    }
-
-    private fun handleSafDownload(requestJson: String, downloader: (String) -> String): String {
-        val req = JSONObject(requestJson)
-        val storageMode = req.optString("storage_mode", "")
-        val treeUriStr = req.optString("saf_tree_uri", "")
-        if (storageMode != "saf" || treeUriStr.isBlank()) {
-            return downloader(requestJson)
-        }
-
-        val treeUri = Uri.parse(treeUriStr)
-        val relativeDir = sanitizeRelativeDir(req.optString("saf_relative_dir", ""))
-        val outputExt = normalizeExt(req.optString("saf_output_ext", ""))
-        val mimeType = mimeTypeForExt(outputExt)
-        val fileName = buildSafFileName(req, outputExt)
-
-        val existingDir = findDocumentDir(treeUri, relativeDir)
-        if (existingDir != null) {
-            val existing = existingDir.findFile(fileName)
-            if (existing != null && existing.isFile && existing.length() > 0) {
-                val obj = JSONObject()
-                obj.put("success", true)
-                obj.put("message", "File already exists")
-                obj.put("file_path", existing.uri.toString())
-                obj.put("file_name", existing.name ?: fileName)
-                obj.put("already_exists", true)
-                return obj.toString()
-            }
-        }
-
-        val targetDir = ensureDocumentDir(treeUri, relativeDir)
-            ?: return errorJson("Failed to access SAF directory")
-
-        var document = createOrReuseDocumentFile(targetDir, mimeType, fileName)
-            ?: return errorJson("Failed to create SAF file")
-
-        val pfd = contentResolver.openFileDescriptor(document.uri, "rw")
-            ?: return errorJson("Failed to open SAF file")
-
-        var detachedFd: Int? = null
-        try {
-            // Prefer handing off a detached FD directly to Go.
-            // Some devices/providers reject re-opening /proc/self/fd/* with permission denied.
-            detachedFd = pfd.detachFd()
-            req.put("output_path", "")
-            req.put("output_fd", detachedFd)
-            req.put("output_ext", outputExt)
-            val response = downloader(req.toString())
-            val respObj = JSONObject(response)
-            if (respObj.optBoolean("success", false)) {
-                // Extension providers write to a local temp path instead of the SAF FD.
-                val goFilePath = respObj.optString("file_path", "")
-                if (goFilePath.isNotEmpty() &&
-                    !goFilePath.startsWith("content://") &&
-                    !goFilePath.startsWith("/proc/self/fd/")
-                ) {
-                    try {
-                        val srcFile = java.io.File(goFilePath)
-                        if (!srcFile.exists() || srcFile.length() <= 0) {
-                            throw IllegalStateException("extension output missing or empty: $goFilePath")
-                        }
-                        val actualExt = normalizeExt(srcFile.extension)
-                        if (actualExt.isNotBlank() && actualExt != outputExt) {
-                            val actualFileName = buildSafFileName(req, actualExt)
-                            val actualMimeType = mimeTypeForExt(actualExt)
-                            val replacement = createOrReuseDocumentFile(
-                                targetDir,
-                                actualMimeType,
-                                actualFileName,
-                            )
-                                ?: throw IllegalStateException("failed to create SAF output with actual extension")
-                            if (replacement.uri != document.uri) {
-                                document.delete()
-                                document = replacement
-                            }
-                        }
-                        contentResolver.openOutputStream(document.uri, "wt")?.use { output ->
-                            srcFile.inputStream().use { input ->
-                                input.copyTo(output)
-                            }
-                        } ?: throw IllegalStateException("failed to open SAF output stream")
-                        srcFile.delete()
-                    } catch (e: Exception) {
-                        document.delete()
-                        android.util.Log.w("SpotiFLAC", "Failed to copy extension output to SAF: ${e.message}")
-                        return errorJson("Failed to copy extension output to SAF: ${e.message}")
-                    }
-                }
-                respObj.put("file_path", document.uri.toString())
-                respObj.put("file_name", document.name ?: fileName)
-            } else {
-                document.delete()
-            }
-            return respObj.toString()
-        } catch (e: Exception) {
-            document.delete()
-            return errorJson("SAF download failed: ${e.message}")
-        } finally {
-            // If detachFd() failed before handoff, close original ParcelFileDescriptor.
-            // Otherwise Go owns the detached raw FD and is responsible for closing it.
-            if (detachedFd == null) {
-                try {
-                    pfd.close()
-                } catch (_: Exception) {}
-            }
-        }
     }
 
     /**
@@ -2195,7 +2064,7 @@ class MainActivity: FlutterFragmentActivity() {
                         "downloadByStrategy" -> {
                             val requestJson = call.arguments as String
                             val response = withContext(Dispatchers.IO) {
-                                handleSafDownload(requestJson) { json ->
+                                SafDownloadHandler.handle(this@MainActivity, requestJson) { json ->
                                     Gobackend.downloadByStrategy(json)
                                 }
                             }
@@ -2885,6 +2754,27 @@ class MainActivity: FlutterFragmentActivity() {
                         }
                         "isDownloadServiceRunning" -> {
                             result.success(DownloadService.isServiceRunning())
+                        }
+                        "startNativeDownloadWorker" -> {
+                            val requestsJson = call.argument<String>("requests_json") ?: "[]"
+                            val settingsJson = call.argument<String>("settings_json") ?: "{}"
+                            DownloadService.startNativeQueue(this@MainActivity, requestsJson, settingsJson)
+                            result.success(null)
+                        }
+                        "pauseNativeDownloadWorker" -> {
+                            DownloadService.pauseNativeQueue(this@MainActivity)
+                            result.success(null)
+                        }
+                        "resumeNativeDownloadWorker" -> {
+                            DownloadService.resumeNativeQueue(this@MainActivity)
+                            result.success(null)
+                        }
+                        "cancelNativeDownloadWorker" -> {
+                            DownloadService.cancelNativeQueue(this@MainActivity)
+                            result.success(null)
+                        }
+                        "getNativeDownloadWorkerSnapshot" -> {
+                            result.success(parseJsonPayload(DownloadService.getNativeWorkerSnapshot(this@MainActivity)))
                         }
                         "preWarmTrackCache" -> {
                             val tracksJson = call.argument<String>("tracks") ?: "[]"

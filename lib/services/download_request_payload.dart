@@ -1,4 +1,7 @@
 class DownloadRequestPayload {
+  static const int nativeWorkerContractVersion = 1;
+
+  final int contractVersion;
   final String isrc;
   final String service;
   final String spotifyId;
@@ -14,6 +17,9 @@ class DownloadRequestPayload {
   final String artistTagMode;
   final bool embedLyrics;
   final bool embedMaxQualityCover;
+  final bool embedReplayGain;
+  final bool postProcessingEnabled;
+  final String tidalHighFormat;
   final int trackNumber;
   final int discNumber;
   final int totalTracks;
@@ -37,9 +43,12 @@ class DownloadRequestPayload {
   final String safRelativeDir;
   final String safFileName;
   final String safOutputExt;
+  final bool stageSafOutput;
+  final bool requiresContainerConversion;
   final String songLinkRegion;
 
   const DownloadRequestPayload({
+    this.contractVersion = nativeWorkerContractVersion,
     this.isrc = '',
     this.service = '',
     this.spotifyId = '',
@@ -55,6 +64,9 @@ class DownloadRequestPayload {
     this.artistTagMode = 'joined',
     this.embedLyrics = true,
     this.embedMaxQualityCover = true,
+    this.embedReplayGain = false,
+    this.postProcessingEnabled = false,
+    this.tidalHighFormat = 'mp3_320',
     this.trackNumber = 0,
     this.discNumber = 0,
     this.totalTracks = 1,
@@ -78,11 +90,14 @@ class DownloadRequestPayload {
     this.safRelativeDir = '',
     this.safFileName = '',
     this.safOutputExt = '',
+    this.stageSafOutput = false,
+    this.requiresContainerConversion = false,
     this.songLinkRegion = 'US',
   });
 
   Map<String, dynamic> toJson() {
     return {
+      'contract_version': contractVersion,
       'isrc': isrc,
       'service': service,
       'spotify_id': spotifyId,
@@ -98,6 +113,9 @@ class DownloadRequestPayload {
       'artist_tag_mode': artistTagMode,
       'embed_lyrics': embedLyrics,
       'embed_max_quality_cover': embedMaxQualityCover,
+      'embed_replaygain': embedReplayGain,
+      'post_processing_enabled': postProcessingEnabled,
+      'tidal_high_format': tidalHighFormat,
       'track_number': trackNumber,
       'disc_number': discNumber,
       'total_tracks': totalTracks,
@@ -121,6 +139,8 @@ class DownloadRequestPayload {
       'saf_relative_dir': safRelativeDir,
       'saf_file_name': safFileName,
       'saf_output_ext': safOutputExt,
+      'stage_saf_output': stageSafOutput,
+      'requires_container_conversion': requiresContainerConversion,
       'songlink_region': songLinkRegion,
     };
   }
@@ -130,6 +150,7 @@ class DownloadRequestPayload {
     bool? useFallback,
   }) {
     return DownloadRequestPayload(
+      contractVersion: contractVersion,
       isrc: isrc,
       service: service,
       spotifyId: spotifyId,
@@ -145,6 +166,9 @@ class DownloadRequestPayload {
       artistTagMode: artistTagMode,
       embedLyrics: embedLyrics,
       embedMaxQualityCover: embedMaxQualityCover,
+      embedReplayGain: embedReplayGain,
+      postProcessingEnabled: postProcessingEnabled,
+      tidalHighFormat: tidalHighFormat,
       trackNumber: trackNumber,
       discNumber: discNumber,
       totalTracks: totalTracks,
@@ -168,6 +192,8 @@ class DownloadRequestPayload {
       safRelativeDir: safRelativeDir,
       safFileName: safFileName,
       safOutputExt: safOutputExt,
+      stageSafOutput: stageSafOutput,
+      requiresContainerConversion: requiresContainerConversion,
       songLinkRegion: songLinkRegion,
     );
   }
