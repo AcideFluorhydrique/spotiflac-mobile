@@ -166,11 +166,11 @@
   "@optionsDefaultSearchTabSubtitle": {
     "description": "Subtitle for the preferred default search tab setting"
   },
-  "optionsDefaultSearchTabAlbums": "Albums",
+  "optionsDefaultSearchTabAlbums": "Alben",
   "@optionsDefaultSearchTabAlbums": {
     "description": "Default search tab option - Albums tab"
   },
-  "optionsDefaultSearchTabTracks": "Tracks",
+  "optionsDefaultSearchTabTracks": "Titel",
   "@optionsDefaultSearchTabTracks": {
     "description": "Default search tab option - Tracks tab"
   },
@@ -3690,7 +3690,7 @@
   "@safMigrationSuccess": {
     "description": "Snackbar after successfully migrating to SAF"
   },
-  "settingsDonate": "Support Development",
+  "settingsDonate": "Unterstütze die Entwicklung",
   "@settingsDonate": {
     "description": "Settings menu item - donate page"
   },
@@ -3794,7 +3794,7 @@
   "@storageModeAppFolderSubtitle": {
     "description": "Subtitle for app folder storage mode"
   },
-  "storageModeSaf": "Custom Folder (SAF)",
+  "storageModeSaf": "Benutzerdefinierter Ordner (SAF)",
   "@storageModeSaf": {
     "description": "Storage mode option - Storage Access Framework"
   },
@@ -3874,7 +3874,7 @@
   "@downloadNeteaseIncludeTranslationEnabled": {
     "description": "Subtitle when Netease translation is on"
   },
-  "downloadNeteaseIncludeTranslationDisabled": "Original lyrics only",
+  "downloadNeteaseIncludeTranslationDisabled": "Original Lyrics verwenden",
   "@downloadNeteaseIncludeTranslationDisabled": {
     "description": "Subtitle when Netease translation is off"
   },
@@ -3886,7 +3886,7 @@
   "@downloadNeteaseIncludeRomanizationEnabled": {
     "description": "Subtitle when Netease romanization is on"
   },
-  "downloadNeteaseIncludeRomanizationDisabled": "No romanization",
+  "downloadNeteaseIncludeRomanizationDisabled": "Keine Romanisierung",
   "@downloadNeteaseIncludeRomanizationDisabled": {
     "description": "Subtitle when Netease romanization is off"
   },
@@ -3922,7 +3922,7 @@
   "@downloadFilterContributingDisabled": {
     "description": "Subtitle when contributing artist filter is off"
   },
-  "downloadProvidersNoneEnabled": "No providers enabled",
+  "downloadProvidersNoneEnabled": "Keine Anbieter aktiviert",
   "@downloadProvidersNoneEnabled": {
     "description": "Shown when no lyrics providers are active"
   },
@@ -4518,7 +4518,7 @@
   "@notifUpdateFailedBody": {
     "description": "Notification body when app update download fails"
   },
-  "settingsFiles": "Files & Folders",
+  "settingsFiles": "Dateien & Ordner",
   "@settingsFiles": {
     "description": "Settings menu item - file and folder settings"
   },
@@ -4526,7 +4526,7 @@
   "@settingsFilesSubtitle": {
     "description": "Subtitle for files & folders settings"
   },
-  "settingsMetadata": "Metadata",
+  "settingsMetadata": "Metadaten",
   "@settingsMetadata": {
     "description": "Settings menu item - metadata settings"
   },
@@ -4550,15 +4550,15 @@
   "@settingsAppSubtitle": {
     "description": "Subtitle for app settings"
   },
-  "sectionMetadataProviders": "Providers",
+  "sectionMetadataProviders": "Anbieter",
   "@sectionMetadataProviders": {
     "description": "Settings section header for metadata providers"
   },
-  "sectionDuplicates": "Duplicates",
+  "sectionDuplicates": "Duplikate",
   "@sectionDuplicates": {
     "description": "Settings section header for deduplication"
   },
-  "sectionLyricsProviderOptions": "Provider Options",
+  "sectionLyricsProviderOptions": "Anbieter-Optionen",
   "@sectionLyricsProviderOptions": {
     "description": "Settings section header for per-provider lyrics options"
   },
@@ -4582,7 +4582,7 @@
   "@downloadDeduplicationDisabled": {
     "description": "Subtitle when deduplication is off"
   },
-  "downloadFallbackExtensions": "Fallback Extensions",
+  "downloadFallbackExtensions": "Fallback-Erweiterungen",
   "@downloadFallbackExtensions": {
     "description": "Settings item for configuring fallback extension providers"
   },
