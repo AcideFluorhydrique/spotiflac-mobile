@@ -3600,19 +3600,19 @@
       }
     }
   },
-  "downloadUseAlbumArtistForFoldersAlbumSubtitle": "Folder named after Album Artist tag",
+  "downloadUseAlbumArtistForFoldersAlbumSubtitle": "Папка названная в честь тега Альбома Артиста",
   "@downloadUseAlbumArtistForFoldersAlbumSubtitle": {
     "description": "Subtitle when album artist is used for folder names"
   },
-  "downloadUseAlbumArtistForFoldersTrackSubtitle": "Folder named after Track Artist tag",
+  "downloadUseAlbumArtistForFoldersTrackSubtitle": "Папка названная в честь тега Трека Артиста",
   "@downloadUseAlbumArtistForFoldersTrackSubtitle": {
     "description": "Subtitle when track artist is used for folder names"
   },
-  "lyricsProvidersTitle": "Lyrics Provider Priority",
+  "lyricsProvidersTitle": "Приоритет к поставщику текста песни",
   "@lyricsProvidersTitle": {
     "description": "Settings item title for lyrics provider order"
   },
-  "lyricsProvidersDescription": "Enable, disable and reorder lyrics sources. Providers are tried top-to-bottom until lyrics are found.",
+  "lyricsProvidersDescription": "Включайте, выключайте, переупорядочивайте источники текстов. Поставщики связаны сверху вниз пока проводится поиск текста.",
   "@lyricsProvidersDescription": {
     "description": "Description on the lyrics provider priority page"
   },
