@@ -560,7 +560,7 @@
   "@setupStorageAccessMessageAndroid11": {
     "description": "Android 11+ specific explanation"
   },
-  "setupOpenSettings": "Open Settings",
+  "setupOpenSettings": "Ouvrir les paramètres",
   "@setupOpenSettings": {
     "description": "Button to open system settings"
   },
@@ -611,7 +611,7 @@
   "@setupAppDocumentsFolder": {
     "description": "iOS documents folder option"
   },
-  "setupAppDocumentsFolderSubtitle": "Recommended - accessible via Files app",
+  "setupAppDocumentsFolderSubtitle": "Recommandé - accessible via l'application Fichiers",
   "@setupAppDocumentsFolderSubtitle": {
     "description": "Subtitle for documents folder"
   },
@@ -691,15 +691,15 @@
   "@setupAllowAccessToManageFiles": {
     "description": "Instruction for file access permission"
   },
-  "setupLanguageTitle": "Choose Language",
+  "setupLanguageTitle": "Choisir la langue",
   "@setupLanguageTitle": {
     "description": "Title for the language selection step in setup"
   },
-  "setupLanguageDescription": "Select your preferred language for the app. You can change this later in Settings.",
+  "setupLanguageDescription": "Sélectionnez la langue de votre choix pour l'application. Vous pourrez la modifier ultérieurement dans les Paramètres.",
   "@setupLanguageDescription": {
     "description": "Description for the language selection step in setup"
   },
-  "setupLanguageSystemDefault": "System Default",
+  "setupLanguageSystemDefault": "Paramètres par défaut du système",
   "@setupLanguageSystemDefault": {
     "description": "Option to use the system language"
   },
@@ -1369,7 +1369,7 @@
   "@sectionPerformance": {
     "description": "Settings section header"
   },
-  "sectionApp": "App",
+  "sectionApp": "Application",
   "@sectionApp": {
     "description": "Settings section header"
   },
@@ -1441,15 +1441,15 @@
   "@sectionLayout": {
     "description": "Settings section header"
   },
-  "sectionLanguage": "Language",
+  "sectionLanguage": "Langue",
   "@sectionLanguage": {
     "description": "Settings section header for language"
   },
-  "appearanceLanguage": "App Language",
+  "appearanceLanguage": "Langue de l'application",
   "@appearanceLanguage": {
     "description": "Language setting title"
   },
-  "settingsAppearanceSubtitle": "Theme, colors, display",
+  "settingsAppearanceSubtitle": "Thème, couleurs, affichage",
   "@settingsAppearanceSubtitle": {
     "description": "Appearance settings description"
   },
@@ -1465,7 +1465,7 @@
   "@settingsExtensionsSubtitle": {
     "description": "Extensions settings description"
   },
-  "settingsLogsSubtitle": "View app logs for debugging",
+  "settingsLogsSubtitle": "Consulter les journaux de l'application pour le débogage",
   "@settingsLogsSubtitle": {
     "description": "Logs settings description"
   },
@@ -1523,11 +1523,11 @@
   "@trackFileNotFound": {
     "description": "Error - file doesn't exist"
   },
-  "trackOpenInDeezer": "Open in Deezer",
+  "trackOpenInDeezer": "Ouvrir dans Deezer",
   "@trackOpenInDeezer": {
     "description": "Action - open track in Deezer app"
   },
-  "trackOpenInSpotify": "Open in Spotify",
+  "trackOpenInSpotify": "Ouvrir dans Spotify",
   "@trackOpenInSpotify": {
     "description": "Action - open track in Spotify app"
   },
@@ -2061,11 +2061,11 @@
   "@downloadFrom": {
     "description": "Label - download source"
   },
-  "appearanceAmoledDark": "AMOLED Dark",
+  "appearanceAmoledDark": "Noir Amoled",
   "@appearanceAmoledDark": {
     "description": "Theme option - pure black"
   },
-  "appearanceAmoledDarkSubtitle": "Pure black background",
+  "appearanceAmoledDarkSubtitle": "Fond noir pur",
   "@appearanceAmoledDarkSubtitle": {
     "description": "Subtitle for AMOLED dark"
   },
@@ -2226,7 +2226,7 @@
   "@recentShowAllDownloads": {
     "description": "Button label to unhide hidden downloads in recent access"
   },
-  "recentPlaylistInfo": "Playlist: {name}",
+  "recentPlaylistInfo": "Playlist : {name}",
   "@recentPlaylistInfo": {
     "description": "Snackbar message when tapping playlist in recent access",
     "placeholders": {
@@ -2370,19 +2370,19 @@
   "@allFilesAccessDisabledSubtitle": {
     "description": "Subtitle when all files access is disabled"
   },
-  "allFilesAccessDescription": "Enable this if you encounter write errors when saving to custom folders. Android 13+ restricts access to certain directories by default.",
+  "allFilesAccessDescription": "Activez cette option si vous rencontrez des erreurs d'écriture lors de l'enregistrement dans des dossiers personnalisés. À partir d'Android 13, l'accès à certains répertoires est restreint par défaut.",
   "@allFilesAccessDescription": {
     "description": "Description explaining when to enable all files access"
   },
-  "allFilesAccessDeniedMessage": "Permission was denied. Please enable 'All files access' manually in system settings.",
+  "allFilesAccessDeniedMessage": "L'autorisation a été refusée. Veuillez activer manuellement l'option « Accès à tous les fichiers » dans les paramètres système.",
   "@allFilesAccessDeniedMessage": {
     "description": "Message when permission is permanently denied"
   },
-  "allFilesAccessDisabledMessage": "All Files Access disabled. The app will use limited storage access.",
+  "allFilesAccessDisabledMessage": "L'accès à tous les fichiers est désactivé. L'application disposera d'un accès limité au stockage.",
   "@allFilesAccessDisabledMessage": {
     "description": "Snackbar message when user disables all files access"
   },
-  "settingsLocalLibrary": "Local Library",
+  "settingsLocalLibrary": "Bibliothèque locale",
   "@settingsLocalLibrary": {
     "description": "Settings menu item - local library"
   },
@@ -2398,59 +2398,59 @@
   "@settingsCacheSubtitle": {
     "description": "Subtitle for cache management menu"
   },
-  "libraryTitle": "Local Library",
+  "libraryTitle": "Bibliothèque locale",
   "@libraryTitle": {
     "description": "Library settings page title"
   },
-  "libraryScanSettings": "Scan Settings",
+  "libraryScanSettings": "Paramètres de numérisation",
   "@libraryScanSettings": {
     "description": "Section header for scan settings"
   },
-  "libraryEnableLocalLibrary": "Enable Local Library",
+  "libraryEnableLocalLibrary": "Activer la bibliothèque locale",
   "@libraryEnableLocalLibrary": {
     "description": "Toggle to enable library scanning"
   },
-  "libraryEnableLocalLibrarySubtitle": "Scan and track your existing music",
+  "libraryEnableLocalLibrarySubtitle": "Analysez et gérez votre bibliothèque musicale",
   "@libraryEnableLocalLibrarySubtitle": {
     "description": "Subtitle for enable toggle"
   },
-  "libraryFolder": "Library Folder",
+  "libraryFolder": "Dossier de bibliothèque",
   "@libraryFolder": {
     "description": "Folder selection setting"
   },
-  "libraryFolderHint": "Tap to select folder",
+  "libraryFolderHint": "Appuyez pour sélectionner un dossier",
   "@libraryFolderHint": {
     "description": "Placeholder when no folder selected"
   },
-  "libraryShowDuplicateIndicator": "Show Duplicate Indicator",
+  "libraryShowDuplicateIndicator": "Afficher l'indicateur de doublons",
   "@libraryShowDuplicateIndicator": {
     "description": "Toggle for duplicate indicator in search"
   },
-  "libraryShowDuplicateIndicatorSubtitle": "Show when searching for existing tracks",
+  "libraryShowDuplicateIndicatorSubtitle": "Afficher lors de la recherche de pistes existantes",
   "@libraryShowDuplicateIndicatorSubtitle": {
     "description": "Subtitle for duplicate indicator toggle"
   },
-  "libraryAutoScan": "Auto Scan",
+  "libraryAutoScan": "Analyse automatique",
   "@libraryAutoScan": {
     "description": "Setting for automatic library scanning"
   },
-  "libraryAutoScanSubtitle": "Automatically scan your library for new files",
+  "libraryAutoScanSubtitle": "Analysez automatiquement votre bibliothèque à la recherche de nouveaux fichiers",
   "@libraryAutoScanSubtitle": {
     "description": "Subtitle for auto scan setting"
   },
-  "libraryAutoScanOff": "Off",
+  "libraryAutoScanOff": "Désactivée",
   "@libraryAutoScanOff": {
     "description": "Auto scan disabled"
   },
-  "libraryAutoScanOnOpen": "Every app open",
+  "libraryAutoScanOnOpen": "À chaque ouverture de l'application",
   "@libraryAutoScanOnOpen": {
     "description": "Auto scan when app opens"
   },
-  "libraryAutoScanDaily": "Daily",
+  "libraryAutoScanDaily": "Tous les jours",
   "@libraryAutoScanDaily": {
     "description": "Auto scan once per day"
   },
-  "libraryAutoScanWeekly": "Weekly",
+  "libraryAutoScanWeekly": "Hebdomadaire",
   "@libraryAutoScanWeekly": {
     "description": "Auto scan once per week"
   },
@@ -2470,11 +2470,11 @@
   "@libraryScanSelectFolderFirst": {
     "description": "Message when trying to scan without folder"
   },
-  "libraryCleanupMissingFiles": "Cleanup Missing Files",
+  "libraryCleanupMissingFiles": "Nettoyage des fichiers manquants",
   "@libraryCleanupMissingFiles": {
     "description": "Button to remove entries for missing files"
   },
-  "libraryCleanupMissingFilesSubtitle": "Remove entries for files that no longer exist",
+  "libraryCleanupMissingFilesSubtitle": "Supprimez les entrées correspondant aux fichiers qui n'existent plus",
   "@libraryCleanupMissingFilesSubtitle": {
     "description": "Subtitle for cleanup button"
   },
@@ -2490,7 +2490,7 @@
   "@libraryClearConfirmTitle": {
     "description": "Dialog title for clear confirmation"
   },
-  "libraryClearConfirmMessage": "This will remove all scanned tracks from your library. Your actual music files will not be deleted.",
+  "libraryClearConfirmMessage": "Cette opération supprimera toutes les pistes numérisées de votre bibliothèque. Vos fichiers musicaux ne seront pas supprimés.",
   "@libraryClearConfirmMessage": {
     "description": "Dialog message for clear confirmation"
   },
@@ -2898,7 +2898,7 @@
   "@cacheLibraryCover": {
     "description": "Cache item title for local library cover art images"
   },
-  "cacheLibraryCoverDesc": "Cover art extracted from local music files. Will re-extract on next scan.",
+  "cacheLibraryCoverDesc": "Pochettes extraites des fichiers musicaux locaux. Elles seront extraites à nouveau lors de la prochaine analyse.",
   "@cacheLibraryCoverDesc": {
     "description": "Description of what library cover cache contains"
   },
@@ -2918,7 +2918,7 @@
   "@cacheTrackLookupDesc": {
     "description": "Description of what track lookup cache contains"
   },
-  "cacheCleanupUnusedDesc": "Remove orphaned download history and library entries for missing files.",
+  "cacheCleanupUnusedDesc": "Supprimer les entrées orphelines de l'historique des téléchargements et de la bibliothèque pour les fichiers manquants.",
   "@cacheCleanupUnusedDesc": {
     "description": "Description of what cleanup unused data does"
   },
@@ -2926,7 +2926,7 @@
   "@cacheNoData": {
     "description": "Label when cache category has no data"
   },
-  "cacheSizeWithFiles": "{size} in {count} files",
+  "cacheSizeWithFiles": "{size} dans {count} fichiers",
   "@cacheSizeWithFiles": {
     "description": "Cache size and file count",
     "placeholders": {
@@ -2969,7 +2969,7 @@
   "@cacheClearConfirmTitle": {
     "description": "Dialog title before clearing one cache category"
   },
-  "cacheClearConfirmMessage": "This will clear cached data for {target}. Downloaded music files will not be deleted.",
+  "cacheClearConfirmMessage": "Cette opération effacera les données mises en cache pour {target}. Les fichiers musicaux téléchargés ne seront pas supprimés.",
   "@cacheClearConfirmMessage": {
     "description": "Dialog message before clearing selected cache",
     "placeholders": {
@@ -2982,7 +2982,7 @@
   "@cacheClearAllConfirmTitle": {
     "description": "Dialog title before clearing all caches"
   },
-  "cacheClearAllConfirmMessage": "This will clear all cache categories on this page. Downloaded music files will not be deleted.",
+  "cacheClearAllConfirmMessage": "Cette opération effacera toutes les catégories mises en cache sur cette page. Les fichiers musicaux téléchargés ne seront pas supprimés.",
   "@cacheClearAllConfirmMessage": {
     "description": "Dialog message before clearing all caches"
   },
@@ -2994,7 +2994,7 @@
   "@cacheCleanupUnused": {
     "description": "Action title for cleaning unused entries"
   },
-  "cacheCleanupUnusedSubtitle": "Remove orphaned download history and missing library entries",
+  "cacheCleanupUnusedSubtitle": "Supprimer l'historique des téléchargements orphelins et les entrées manquantes dans la bibliothèque",
   "@cacheCleanupUnusedSubtitle": {
     "description": "Subtitle for cleanup unused data action"
   },
@@ -3749,7 +3749,7 @@
   "@safMigrationMessage1": {
     "description": "First paragraph of SAF migration dialog"
   },
-  "safMigrationMessage2": "Please select your download folder again to switch to the new storage system.",
+  "safMigrationMessage2": "Veuillez sélectionner à nouveau votre dossier de téléchargement pour passer au nouveau système de stockage.",
   "@safMigrationMessage2": {
     "description": "Second paragraph of SAF migration dialog"
   },
@@ -3993,15 +3993,15 @@
   "@downloadProvidersNoneEnabled": {
     "description": "Shown when no lyrics providers are active"
   },
-  "downloadMusixmatchLanguageCode": "Language code",
+  "downloadMusixmatchLanguageCode": "Code de langue",
   "@downloadMusixmatchLanguageCode": {
     "description": "Label for Musixmatch language input field"
   },
-  "downloadMusixmatchLanguageHint": "e.g. en, de, ja",
+  "downloadMusixmatchLanguageHint": "par exemple : en, de, ja",
   "@downloadMusixmatchLanguageHint": {
     "description": "Placeholder for Musixmatch language input"
   },
-  "downloadMusixmatchLanguageDesc": "Enter a BCP-47 language code (e.g. en, de, ja) to request translated lyrics from Musixmatch.",
+  "downloadMusixmatchLanguageDesc": "Saisissez un code de langue BCP-47 (par exemple : en, de, ja) pour demander les paroles traduites à Musixmatch.",
   "@downloadMusixmatchLanguageDesc": {
     "description": "Description in Musixmatch language picker"
   },
@@ -4259,7 +4259,7 @@
   "@audioAnalysisNyquist": {
     "description": "Nyquist frequency metric label"
   },
-  "audioAnalysisFileSize": "Size",
+  "audioAnalysisFileSize": "Taille",
   "@audioAnalysisFileSize": {
     "description": "File size metric label"
   },
@@ -4391,7 +4391,7 @@
   "@notifChannelLibraryScanName": {
     "description": "Android notification channel name for library scan"
   },
-  "notifChannelLibraryScanDesc": "Shows local library scan progress",
+  "notifChannelLibraryScanDesc": "Affiche la progression de la numérisation dans la bibliothèque locale",
   "@notifChannelLibraryScanDesc": {
     "description": "Android notification channel description for library scan"
   },
@@ -4417,7 +4417,7 @@
   "@notifEmbeddingMetadata": {
     "description": "Notification body while embedding metadata into a downloaded track"
   },
-  "notifAlreadyInLibraryCount": "Already in Library ({completed}/{total})",
+  "notifAlreadyInLibraryCount": "Déjà dans la bibliothèque ({completed}/{total})",
   "@notifAlreadyInLibraryCount": {
     "description": "Notification title when track is already in library, with count",
     "placeholders": {
@@ -4429,7 +4429,7 @@
       }
     }
   },
-  "notifAlreadyInLibrary": "Already in Library",
+  "notifAlreadyInLibrary": "Déjà dans la bibliothèque",
   "@notifAlreadyInLibrary": {
     "description": "Notification title when track is already in library"
   },
@@ -4499,11 +4499,11 @@
       }
     }
   },
-  "notifScanningLibrary": "Scanning local library",
+  "notifScanningLibrary": "Numérisation de la bibliothèque locale",
   "@notifScanningLibrary": {
     "description": "Notification title while scanning local library"
   },
-  "notifLibraryScanProgressWithTotal": "{scanned}/{total} files • {percentage}%",
+  "notifLibraryScanProgressWithTotal": "{scanned}/{total} fichiers • {percentage} %",
   "@notifLibraryScanProgressWithTotal": {
     "description": "Notification body for library scan progress when total is known",
     "placeholders": {
@@ -4518,7 +4518,7 @@
       }
     }
   },
-  "notifLibraryScanProgressNoTotal": "{scanned} files scanned • {percentage}%",
+  "notifLibraryScanProgressNoTotal": "{scanned} fichiers analysés • {percentage} %",
   "@notifLibraryScanProgressNoTotal": {
     "description": "Notification body for library scan progress when total is unknown",
     "placeholders": {
@@ -4530,11 +4530,11 @@
       }
     }
   },
-  "notifLibraryScanComplete": "Library scan complete",
+  "notifLibraryScanComplete": "Analyse de la bibliothèque terminée",
   "@notifLibraryScanComplete": {
     "description": "Notification title when library scan finishes"
   },
-  "notifLibraryScanCompleteBody": "{count} tracks indexed",
+  "notifLibraryScanCompleteBody": "{count} titres indexés",
   "@notifLibraryScanCompleteBody": {
     "description": "Notification body for library scan complete - number of indexed tracks",
     "placeholders": {
@@ -4543,7 +4543,7 @@
       }
     }
   },
-  "notifLibraryScanExcluded": "{count} excluded",
+  "notifLibraryScanExcluded": "{count} exclus",
   "@notifLibraryScanExcluded": {
     "description": "Library scan complete suffix - excluded track count",
     "placeholders": {
@@ -4552,7 +4552,7 @@
       }
     }
   },
-  "notifLibraryScanErrors": "{count} errors",
+  "notifLibraryScanErrors": "{count} erreurs",
   "@notifLibraryScanErrors": {
     "description": "Library scan complete suffix - error count",
     "placeholders": {
@@ -4561,15 +4561,15 @@
       }
     }
   },
-  "notifLibraryScanFailed": "Library scan failed",
+  "notifLibraryScanFailed": "Échec de l'analyse de la bibliothèque",
   "@notifLibraryScanFailed": {
     "description": "Notification title when library scan fails"
   },
-  "notifLibraryScanCancelled": "Library scan cancelled",
+  "notifLibraryScanCancelled": "Annulation de la numérisation de la bibliothèque",
   "@notifLibraryScanCancelled": {
     "description": "Notification title when library scan is cancelled by the user"
   },
-  "notifLibraryScanStopped": "Scan stopped before completion.",
+  "notifLibraryScanStopped": "L'analyse a été interrompue avant d'être terminée.",
   "@notifLibraryScanStopped": {
     "description": "Notification body when library scan is cancelled"
   },
@@ -4930,11 +4930,11 @@
   "@optionsDefaultSearchTabTracks": {
     "description": "Default search tab option - Tracks tab"
   },
-  "settingsFiles": "Files & Folders",
+  "settingsFiles": "Fichiers & Dossiers",
   "@settingsFiles": {
     "description": "Settings menu item - file and folder settings"
   },
-  "settingsFilesSubtitle": "Download location, filename, folder structure",
+  "settingsFilesSubtitle": "Emplacement de téléchargement, nom de fichier, structure des dossiers",
   "@settingsFilesSubtitle": {
     "description": "Subtitle for files & folders settings"
   },
@@ -4950,15 +4950,15 @@
   "@settingsLyrics": {
     "description": "Settings menu item - lyrics settings"
   },
-  "settingsLyricsSubtitle": "Embed, mode, providers, language options",
+  "settingsLyricsSubtitle": "Intégration, mode, fournisseurs, options linguistiques",
   "@settingsLyricsSubtitle": {
     "description": "Subtitle for lyrics settings"
   },
-  "settingsApp": "App",
+  "settingsApp": "Application",
   "@settingsApp": {
     "description": "Settings menu item - app settings"
   },
-  "settingsAppSubtitle": "Updates, data, extension repo, debug",
+  "settingsAppSubtitle": "Mises à jour, données, dépôt d'extension, débogage",
   "@settingsAppSubtitle": {
     "description": "Subtitle for app settings"
   },
