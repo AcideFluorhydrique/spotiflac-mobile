@@ -25,9 +25,10 @@ const (
 )
 
 type ExtensionPermissions struct {
-	Network []string `json:"network"`
-	Storage bool     `json:"storage"`
-	File    bool     `json:"file"`
+	Network   []string `json:"network"`
+	Storage   bool     `json:"storage"`
+	File      bool     `json:"file"`
+	AllowHTTP bool     `json:"allowHttp,omitempty"`
 }
 
 type ExtensionSetting struct {

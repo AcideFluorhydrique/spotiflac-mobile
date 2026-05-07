@@ -144,6 +144,15 @@ func TestExtensionRuntime_NetworkSandbox(t *testing.T) {
 	if err := runtime.validateDomain("https://notallowed.com/path"); err == nil {
 		t.Error("Expected notallowed.com to be denied")
 	}
+
+	if err := runtime.validateDomain("http://api.allowed.com/path"); err == nil {
+		t.Error("Expected http URL to be denied without allowHttp")
+	}
+
+	ext.Manifest.Permissions.AllowHTTP = true
+	if err := runtime.validateDomain("http://api.allowed.com/path"); err != nil {
+		t.Errorf("Expected http URL to be allowed with allowHttp, got error: %v", err)
+	}
 }
 
 func TestExtensionRuntime_FileSandbox(t *testing.T) {

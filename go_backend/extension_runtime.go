@@ -258,7 +258,8 @@ func newExtensionHTTPClient(ext *loadedExtension, jar http.CookieJar, timeout ti
 		Jar:       jar,
 	}
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		if req.URL.Scheme != "https" {
+		if req.URL.Scheme != "https" &&
+			!(req.URL.Scheme == "http" && ext.Manifest.Permissions.AllowHTTP) {
 			GoLog("[Extension:%s] Redirect blocked: non-https scheme '%s'\n", ext.ID, req.URL.Scheme)
 			return fmt.Errorf("redirect blocked: only https is allowed")
 		}

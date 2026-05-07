@@ -2797,7 +2797,17 @@ class MainActivity: FlutterFragmentActivity() {
                         "startNativeDownloadWorker" -> {
                             val requestsJson = call.argument<String>("requests_json") ?: "[]"
                             val settingsJson = call.argument<String>("settings_json") ?: "{}"
-                            DownloadService.startNativeQueue(this@MainActivity, requestsJson, settingsJson)
+                            val requestsPath = call.argument<String>("requests_path") ?: ""
+                            val settingsPath = call.argument<String>("settings_path") ?: ""
+                            if (requestsPath.isNotBlank()) {
+                                DownloadService.startNativeQueueFromFiles(
+                                    this@MainActivity,
+                                    requestsPath,
+                                    settingsPath
+                                )
+                            } else {
+                                DownloadService.startNativeQueue(this@MainActivity, requestsJson, settingsJson)
+                            }
                             result.success(null)
                         }
                         "pauseNativeDownloadWorker" -> {

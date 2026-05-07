@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spotiflac_android/services/download_request_payload.dart';
 import 'package:spotiflac_android/utils/logger.dart';
@@ -841,10 +842,58 @@ class PlatformBridge {
     required List<Map<String, dynamic>> requests,
     Map<String, dynamic> settings = const {},
   }) async {
-    await _channel.invokeMethod('startNativeDownloadWorker', {
-      'requests_json': jsonEncode(requests),
-      'settings_json': jsonEncode(settings),
-    });
+    final requestsJson = jsonEncode(requests);
+    final settingsJson = jsonEncode(settings);
+    final payloadDir = await _nativeWorkerPayloadDir();
+    await _cleanupNativeWorkerPayloads(payloadDir);
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    final requestPath = '${payloadDir.path}/requests_$stamp.json';
+    final settingsPath = '${payloadDir.path}/settings_$stamp.json';
+    await File(requestPath).writeAsString(requestsJson, flush: true);
+    await File(settingsPath).writeAsString(settingsJson, flush: true);
+    try {
+      await _channel.invokeMethod('startNativeDownloadWorker', {
+        'requests_path': requestPath,
+        'settings_path': settingsPath,
+      });
+    } catch (_) {
+      unawaited(_deleteFileIfExists(requestPath));
+      unawaited(_deleteFileIfExists(settingsPath));
+      rethrow;
+    }
+  }
+
+  static Future<void> _deleteFileIfExists(String path) async {
+    try {
+      final file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {}
+  }
+
+  static Future<Directory> _nativeWorkerPayloadDir() async {
+    final tempDir = await getTemporaryDirectory();
+    final payloadDir = Directory('${tempDir.path}/native_worker_payloads');
+    if (!await payloadDir.exists()) {
+      await payloadDir.create(recursive: true);
+    }
+    return payloadDir;
+  }
+
+  static Future<void> _cleanupNativeWorkerPayloads(Directory payloadDir) async {
+    final cutoff = DateTime.now().subtract(const Duration(days: 1));
+    try {
+      await for (final entity in payloadDir.list(followLinks: false)) {
+        if (entity is! File || !entity.path.endsWith('.json')) continue;
+        final stat = await entity.stat();
+        if (stat.modified.isBefore(cutoff)) {
+          try {
+            await entity.delete();
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
   }
 
   static Future<void> pauseNativeDownloadWorker() async {

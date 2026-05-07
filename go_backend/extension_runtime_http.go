@@ -44,7 +44,8 @@ func (r *extensionRuntime) validateDomain(urlStr string) error {
 	if parsed.Scheme == "" {
 		return fmt.Errorf("invalid URL: scheme is required")
 	}
-	if parsed.Scheme != "https" {
+	if parsed.Scheme != "https" &&
+		!(parsed.Scheme == "http" && r.manifest.Permissions.AllowHTTP) {
 		return fmt.Errorf("network access denied: only https is allowed")
 	}
 	if parsed.User != nil {

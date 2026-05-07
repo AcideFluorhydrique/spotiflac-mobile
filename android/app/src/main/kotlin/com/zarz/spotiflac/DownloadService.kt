@@ -58,6 +58,8 @@ class DownloadService : Service() {
         const val EXTRA_STATUS = "status"
         const val EXTRA_REQUESTS_JSON = "requests_json"
         const val EXTRA_SETTINGS_JSON = "settings_json"
+        const val EXTRA_REQUESTS_PATH = "requests_path"
+        const val EXTRA_SETTINGS_PATH = "settings_path"
         private const val NATIVE_WORKER_STATE_FILE = "native_download_worker_state.json"
         private const val NATIVE_WORKER_PROGRESS_FILE = "native_download_worker_progress.json"
         private const val NATIVE_REPLAYGAIN_JOURNAL_FILE = "native_replaygain_journal.json"
@@ -109,6 +111,19 @@ class DownloadService : Service() {
                 action = ACTION_START_NATIVE_QUEUE
                 putExtra(EXTRA_REQUESTS_JSON, requestsJson)
                 putExtra(EXTRA_SETTINGS_JSON, settingsJson)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
+
+        fun startNativeQueueFromFiles(context: Context, requestsPath: String, settingsPath: String = "") {
+            val intent = Intent(context, DownloadService::class.java).apply {
+                action = ACTION_START_NATIVE_QUEUE
+                putExtra(EXTRA_REQUESTS_PATH, requestsPath)
+                putExtra(EXTRA_SETTINGS_PATH, settingsPath)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -282,8 +297,18 @@ class DownloadService : Service() {
                 stopForegroundService()
             }
             ACTION_START_NATIVE_QUEUE -> {
-                val requestsJson = intent.getStringExtra(EXTRA_REQUESTS_JSON) ?: "[]"
-                val settingsJson = intent.getStringExtra(EXTRA_SETTINGS_JSON) ?: "{}"
+                val requestsJson = readNativeQueuePayload(
+                    intent,
+                    EXTRA_REQUESTS_JSON,
+                    EXTRA_REQUESTS_PATH,
+                    "[]"
+                )
+                val settingsJson = readNativeQueuePayload(
+                    intent,
+                    EXTRA_SETTINGS_JSON,
+                    EXTRA_SETTINGS_PATH,
+                    "{}"
+                )
                 startNativeWorker(requestsJson, settingsJson)
             }
             ACTION_PAUSE_NATIVE_QUEUE -> {
@@ -365,6 +390,36 @@ class DownloadService : Service() {
             }
         }
         return START_NOT_STICKY
+    }
+
+    private fun readNativeQueuePayload(
+        intent: Intent,
+        jsonExtra: String,
+        pathExtra: String,
+        defaultValue: String,
+    ): String {
+        val path = intent.getStringExtra(pathExtra).orEmpty()
+        if (path.isNotBlank()) {
+            return try {
+                val file = File(path)
+                val payload = file.readText()
+                if (!file.delete()) {
+                    android.util.Log.w(
+                        "DownloadService",
+                        "Failed to delete native worker payload file: $path"
+                    )
+                }
+                payload.ifBlank { defaultValue }
+            } catch (e: Exception) {
+                android.util.Log.w(
+                    "DownloadService",
+                    "Failed to read native worker payload file: ${e.message}"
+                )
+                defaultValue
+            }
+        }
+
+        return intent.getStringExtra(jsonExtra) ?: defaultValue
     }
     
     override fun onBind(intent: Intent?): IBinder? = null
