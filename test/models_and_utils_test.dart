@@ -328,6 +328,7 @@ void main() {
         safRelativeDir: 'Album',
         safFileName: 'Song.flac',
         safOutputExt: 'flac',
+        outputExt: '.flac',
         songLinkRegion: 'ID',
       );
 
@@ -374,6 +375,7 @@ void main() {
         'saf_relative_dir': 'Album',
         'saf_file_name': 'Song.flac',
         'saf_output_ext': 'flac',
+        'output_ext': '.flac',
         'stage_saf_output': false,
         'defer_saf_publish': false,
         'requires_container_conversion': false,

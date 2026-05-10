@@ -517,8 +517,9 @@ object NativeDownloadFinalizer {
     ) {
         if (requestQuality(input) == "HIGH" || outputExt(input) != ".flac") return
         val requestedDecryptionExt = requestedDecryptionOutputExt(input)
-        if (requestedDecryptionExt.isNotBlank() && requestedDecryptionExt != ".flac") return
-        val mayNeedContainerConversion = shouldForceContainerConversion(input, state) ||
+        val forceContainerConversion = shouldForceContainerConversion(input, state)
+        if (!forceContainerConversion && requestedDecryptionExt.isNotBlank() && requestedDecryptionExt != ".flac") return
+        val mayNeedContainerConversion = forceContainerConversion ||
             looksLikeM4a(state.filePath, state.fileName) ||
             state.filePath.startsWith("content://")
         if (!mayNeedContainerConversion) return
