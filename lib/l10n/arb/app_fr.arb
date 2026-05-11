@@ -336,7 +336,7 @@
       }
     }
   },
-  "optionsSpotifyCredentialsRequired": "Required - tap to configure",
+  "optionsSpotifyCredentialsRequired": "Obligatoire - appuyez pour configurer",
   "@optionsSpotifyCredentialsRequired": {
     "description": "Prompt to set up credentials"
   },
@@ -548,7 +548,7 @@
   "@setupGrantPermission": {
     "description": "Button to request permission"
   },
-  "setupSkip": "Skip for now",
+  "setupSkip": "Ignorer pour le moment",
   "@setupSkip": {
     "description": "Skip current step button"
   },
@@ -568,7 +568,7 @@
   "@setupPermissionDeniedMessage": {
     "description": "Error when permission denied"
   },
-  "setupPermissionRequired": "{permissionType} Permission Required",
+  "setupPermissionRequired": "Autorisation {permissionType} requise",
   "@setupPermissionRequired": {
     "description": "Generic permission required title",
     "placeholders": {
@@ -578,7 +578,7 @@
       }
     }
   },
-  "setupPermissionRequiredMessage": "{permissionType} permission is required for the best experience. You can change this later in Settings.",
+  "setupPermissionRequiredMessage": "L'autorisation {permissionType} est requise pour profiter pleinement de l'application. Vous pourrez modifier ce paramètre ultérieurement dans les Paramètres.",
   "@setupPermissionRequiredMessage": {
     "description": "Generic permission required message",
     "placeholders": {
@@ -587,7 +587,7 @@
       }
     }
   },
-  "setupUseDefaultFolder": "Use Default Folder?",
+  "setupUseDefaultFolder": "Utiliser le dossier par défaut ?",
   "@setupUseDefaultFolder": {
     "description": "Dialog title for default folder"
   },
@@ -595,19 +595,19 @@
   "@setupNoFolderSelected": {
     "description": "Prompt when no folder selected"
   },
-  "setupUseDefault": "Use Default",
+  "setupUseDefault": "Utiliser les paramètres par défaut",
   "@setupUseDefault": {
     "description": "Button to use default folder"
   },
-  "setupDownloadLocationTitle": "Download Location",
+  "setupDownloadLocationTitle": "Emplacement de téléchargement",
   "@setupDownloadLocationTitle": {
     "description": "Download location dialog title"
   },
-  "setupDownloadLocationIosMessage": "On iOS, downloads are saved to the app's Documents folder. You can access them via the Files app.",
+  "setupDownloadLocationIosMessage": "Sous iOS, les fichiers téléchargés sont enregistrés dans le dossier « Documents » de l'application. Vous pouvez y accéder via l'application Fichiers.",
   "@setupDownloadLocationIosMessage": {
     "description": "iOS-specific folder info"
   },
-  "setupAppDocumentsFolder": "App Documents Folder",
+  "setupAppDocumentsFolder": "Dossier « Documents » de l'application",
   "@setupAppDocumentsFolder": {
     "description": "iOS documents folder option"
   },
@@ -615,15 +615,15 @@
   "@setupAppDocumentsFolderSubtitle": {
     "description": "Subtitle for documents folder"
   },
-  "setupChooseFromFiles": "Choose from Files",
+  "setupChooseFromFiles": "Sélectionnez un fichier",
   "@setupChooseFromFiles": {
     "description": "iOS file picker option"
   },
-  "setupChooseFromFilesSubtitle": "Select iCloud or other location",
+  "setupChooseFromFilesSubtitle": "Sélectionnez iCloud ou un autre emplacement",
   "@setupChooseFromFilesSubtitle": {
     "description": "Subtitle for file picker"
   },
-  "setupIosEmptyFolderWarning": "iOS limitation: Empty folders cannot be selected. Choose a folder with at least one file.",
+  "setupIosEmptyFolderWarning": "Limitation iOS : les dossiers vides ne peuvent pas être sélectionnés. Choisissez un dossier contenant au moins un fichier.",
   "@setupIosEmptyFolderWarning": {
     "description": "iOS folder selection warning"
   },
@@ -759,7 +759,7 @@
   "@dialogClearAll": {
     "description": "Dialog title - clear all items"
   },
-  "dialogRemoveExtension": "Remove Extension",
+  "dialogRemoveExtension": "Supprimer l'extension",
   "@dialogRemoveExtension": {
     "description": "Dialog title - uninstall extension"
   },
@@ -792,7 +792,7 @@
   "@dialogDeleteSelectedTitle": {
     "description": "Dialog title - delete selected items"
   },
-  "dialogDeleteSelectedMessage": "Delete {count} {count, plural, =1{track} other{tracks}} from history?\n\nThis will also delete the files from storage.",
+  "dialogDeleteSelectedMessage": "Supprimer {count} {count, plural, =1{titre} other{titres}} de l'historique ?\n\nCela supprimera également les fichiers du stockage.",
   "@dialogDeleteSelectedMessage": {
     "description": "Dialog message - delete selected tracks",
     "placeholders": {
@@ -801,7 +801,7 @@
       }
     }
   },
-  "dialogImportPlaylistTitle": "Import Playlist",
+  "dialogImportPlaylistTitle": "Importer une playlist",
   "@dialogImportPlaylistTitle": {
     "description": "Dialog title - import CSV playlist"
   },
@@ -889,11 +889,11 @@
       }
     }
   },
-  "snackbarFillAllFields": "Please fill all fields",
+  "snackbarFillAllFields": "Veuillez remplir tous les champs",
   "@snackbarFillAllFields": {
     "description": "Snackbar - validation error"
   },
-  "snackbarViewQueue": "View Queue",
+  "snackbarViewQueue": "Afficher la file d'attente",
   "@snackbarViewQueue": {
     "description": "Snackbar action - view download queue"
   },
@@ -911,7 +911,7 @@
   "@snackbarFileNotFound": {
     "description": "Snackbar - file doesn't exist"
   },
-  "snackbarSelectExtFile": "Please select a .spotiflac-ext file",
+  "snackbarSelectExtFile": "Veuillez sélectionner un fichier .spotiflac-ext",
   "@snackbarSelectExtFile": {
     "description": "Snackbar - wrong file type selected"
   },
@@ -949,7 +949,7 @@
   "@snackbarFailedToUpdate": {
     "description": "Snackbar - extension update error"
   },
-  "errorRateLimited": "Rate Limited",
+  "errorRateLimited": "Débit limité",
   "@errorRateLimited": {
     "description": "Error title - too many requests"
   },
@@ -957,7 +957,7 @@
   "@errorRateLimitedMessage": {
     "description": "Error message - rate limit explanation"
   },
-  "errorNoTracksFound": "No tracks found",
+  "errorNoTracksFound": "Aucun titre trouvé",
   "@errorNoTracksFound": {
     "description": "Error - search returned no results"
   },
@@ -1279,31 +1279,31 @@
   "@logFilterSection": {
     "description": "Filter section title"
   },
-  "logShareLogs": "Share logs",
+  "logShareLogs": "Partager les journaux",
   "@logShareLogs": {
     "description": "Share button tooltip"
   },
-  "logClearLogs": "Clear logs",
+  "logClearLogs": "Effacer les journaux",
   "@logClearLogs": {
     "description": "Clear button tooltip"
   },
-  "logClearLogsTitle": "Clear Logs",
+  "logClearLogsTitle": "Effacer les journaux",
   "@logClearLogsTitle": {
     "description": "Clear logs dialog title"
   },
-  "logClearLogsMessage": "Are you sure you want to clear all logs?",
+  "logClearLogsMessage": "Êtes-vous sûr de vouloir effacer tous les journaux ?",
   "@logClearLogsMessage": {
     "description": "Clear logs confirmation message"
   },
-  "logFilterBySeverity": "Filter logs by severity",
+  "logFilterBySeverity": "Filtrer les journaux par niveau de gravité",
   "@logFilterBySeverity": {
     "description": "Filter dialog title"
   },
-  "logNoLogsYet": "No logs yet",
+  "logNoLogsYet": "Pas encore de journal",
   "@logNoLogsYet": {
     "description": "Empty state title"
   },
-  "logNoLogsYetSubtitle": "Logs will appear here as you use the app",
+  "logNoLogsYetSubtitle": "Les journaux s'afficheront ici au fur et à mesure que vous utiliserez l'application",
   "@logNoLogsYetSubtitle": {
     "description": "Empty state subtitle"
   },
@@ -1325,27 +1325,27 @@
       }
     }
   },
-  "credentialsTitle": "Spotify Credentials",
+  "credentialsTitle": "Identifiants Spotify",
   "@credentialsTitle": {
     "description": "Credentials dialog title"
   },
-  "credentialsDescription": "Enter your Client ID and Secret to use your own Spotify application quota.",
+  "credentialsDescription": "Saisissez votre identifiant client et votre clé secrète pour utiliser votre propre quota d'application Spotify.",
   "@credentialsDescription": {
     "description": "Credentials dialog explanation"
   },
-  "credentialsClientId": "Client ID",
+  "credentialsClientId": "Identifiant client",
   "@credentialsClientId": {
     "description": "Client ID field label - DO NOT TRANSLATE"
   },
-  "credentialsClientIdHint": "Paste Client ID",
+  "credentialsClientIdHint": "Coller l'identifiant client",
   "@credentialsClientIdHint": {
     "description": "Client ID placeholder"
   },
-  "credentialsClientSecret": "Client Secret",
+  "credentialsClientSecret": "Clé secrète du client",
   "@credentialsClientSecret": {
     "description": "Client Secret field label - DO NOT TRANSLATE"
   },
-  "credentialsClientSecretHint": "Paste Client Secret",
+  "credentialsClientSecretHint": "Coller la clé secrète du client",
   "@credentialsClientSecretHint": {
     "description": "Client Secret placeholder"
   },
@@ -1373,11 +1373,11 @@
   "@sectionApp": {
     "description": "Settings section header"
   },
-  "sectionData": "Data",
+  "sectionData": "Données",
   "@sectionData": {
     "description": "Settings section header"
   },
-  "sectionDebug": "Debug",
+  "sectionDebug": "Débogage",
   "@sectionDebug": {
     "description": "Settings section header"
   },
@@ -1393,15 +1393,15 @@
   "@sectionFileSettings": {
     "description": "Settings section header"
   },
-  "sectionLyrics": "Lyrics",
+  "sectionLyrics": "Paroles",
   "@sectionLyrics": {
     "description": "Settings section header"
   },
-  "lyricsMode": "Lyrics Mode",
+  "lyricsMode": "Mode Paroles",
   "@lyricsMode": {
     "description": "Setting - how to save lyrics"
   },
-  "lyricsModeDescription": "Choose how lyrics are saved with your downloads",
+  "lyricsModeDescription": "Choisissez comment les paroles sont enregistrées avec vos téléchargements",
   "@lyricsModeDescription": {
     "description": "Lyrics mode picker description"
   },
@@ -1425,7 +1425,7 @@
   "@lyricsModeBoth": {
     "description": "Lyrics mode option - embed and external"
   },
-  "lyricsModeBothSubtitle": "Embed and save .lrc file",
+  "lyricsModeBothSubtitle": "Intégrer et enregistrer le fichier .lrc",
   "@lyricsModeBothSubtitle": {
     "description": "Subtitle for both option"
   },
@@ -1433,7 +1433,7 @@
   "@sectionColor": {
     "description": "Settings section header"
   },
-  "sectionTheme": "Theme",
+  "sectionTheme": "Thème",
   "@sectionTheme": {
     "description": "Settings section header"
   },
@@ -1453,7 +1453,7 @@
   "@settingsAppearanceSubtitle": {
     "description": "Appearance settings description"
   },
-  "settingsDownloadSubtitle": "Service, quality, fallback",
+  "settingsDownloadSubtitle": "Service, qualité, solution de secours",
   "@settingsDownloadSubtitle": {
     "description": "Download settings description"
   },
@@ -1499,7 +1499,7 @@
   "@trackCopyFilePath": {
     "description": "Action - copy file path"
   },
-  "trackRemoveFromDevice": "Remove from device",
+  "trackRemoveFromDevice": "Supprimer de l'appareil",
   "@trackRemoveFromDevice": {
     "description": "Action - delete downloaded file"
   },
