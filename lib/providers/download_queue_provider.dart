@@ -6246,6 +6246,16 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     if (context.quality == 'HIGH' || context.outputExt != '.flac') {
       return filePath;
     }
+    final resultAudioFormat = _normalizeAudioFormatValue(
+      result['audio_codec']?.toString() ??
+          result['actual_audio_codec']?.toString(),
+    );
+    if (_isLossyAudioFormat(resultAudioFormat)) {
+      _log.d(
+        'Native-worker output is $resultAudioFormat; preserving native container.',
+      );
+      return filePath;
+    }
     final requiresContainerConversion =
         result['requires_container_conversion'] == true ||
         result['requiresContainerConversion'] == true;
@@ -7411,10 +7421,16 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           result,
           filePath: filePath,
         );
+        final resultAudioFormat = _normalizeAudioFormatValue(
+          result['audio_codec']?.toString() ??
+              result['actual_audio_codec']?.toString(),
+        );
+        final resultIsLossyAudio = _isLossyAudioFormat(resultAudioFormat);
         final requiresContainerConversion =
             result['requires_container_conversion'] == true ||
             result['requiresContainerConversion'] == true ||
-            _shouldRequestContainerConversion(actualService, safOutputExt);
+            (!resultIsLossyAudio &&
+                _shouldRequestContainerConversion(actualService, safOutputExt));
         final preferredOutputExt = _extensionPreferredOutputExt(actualService);
         final shouldPreserveNativeM4a =
             !requiresContainerConversion &&
