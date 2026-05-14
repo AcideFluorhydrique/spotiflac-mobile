@@ -455,8 +455,7 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
         final peakAmplitude =
             levelMetrics?.peakDb ?? spectrumResult.peakAmplitude;
         final rmsLevel = levelMetrics?.rmsDb ?? spectrumResult.rmsLevel;
-        final dynamicRange =
-            levelMetrics?.dynamicRangeDb ?? (peakAmplitude - rmsLevel);
+        final dynamicRange = peakAmplitude - rmsLevel;
         final spectralCutoffHz = spectrumResult.spectrum == null
             ? null
             : await compute(
@@ -601,7 +600,7 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
 
   String _formatCodecLabel(String codecName, String codecLongName) {
     final name = codecName.trim();
-    final longName = codecLongName.trim();
+    final longName = _normalizeAnalysisLabel(codecLongName);
     if (name.isEmpty) return longName;
     if (longName.isEmpty || longName.toLowerCase() == name.toLowerCase()) {
       return name.toUpperCase();
@@ -610,10 +609,17 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
   }
 
   String _formatContainerLabel(String formatName, String formatLongName) {
-    final longName = formatLongName.trim();
+    final longName = _normalizeAnalysisLabel(formatLongName);
     if (longName.isNotEmpty) return longName;
     final name = formatName.trim();
     return name.isEmpty ? '' : name.toUpperCase();
+  }
+
+  String _normalizeAnalysisLabel(String value) {
+    final trimmed = value.trim();
+    final lower = trimmed.toLowerCase();
+    if (lower.isEmpty || lower == 'unknown' || lower == 'n/a') return '';
+    return trimmed;
   }
 
   int _estimateTotalSamples({
@@ -671,6 +677,9 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
         inputPath,
         '-map',
         '0:a:0',
+        '-vn',
+        '-sn',
+        '-dn',
         '-af',
         'astats=metadata=1:reset=0',
         '-f',
@@ -697,7 +706,6 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
       return _LevelMetrics(
         peakDb: peak,
         rmsDb: rms,
-        dynamicRangeDb: _parseLastAstatsValue(section, 'Dynamic range'),
         clippingSamples: clippingSamples,
         channelStats: channelStats,
       );
@@ -714,7 +722,12 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
         '-nostats',
         '-i',
         inputPath,
-        '-filter_complex',
+        '-map',
+        '0:a:0',
+        '-vn',
+        '-sn',
+        '-dn',
+        '-af',
         'ebur128=peak=true:framelog=quiet',
         '-f',
         'null',
@@ -757,12 +770,16 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
       final channel = int.tryParse(match.group(1) ?? '') ?? 0;
       final section = match.group(2) ?? '';
       if (channel <= 0 || section.trim().isEmpty) continue;
+      final peakDb = _parseLastAstatsValue(section, 'Peak level dB');
+      final rmsDb = _parseLastAstatsValue(section, 'RMS level dB');
       stats.add(
         ChannelAnalysisStats(
           channel: channel,
-          peakDb: _parseLastAstatsValue(section, 'Peak level dB'),
-          rmsDb: _parseLastAstatsValue(section, 'RMS level dB'),
-          dynamicRangeDb: _parseLastAstatsValue(section, 'Dynamic range'),
+          peakDb: peakDb,
+          rmsDb: rmsDb,
+          dynamicRangeDb: peakDb != null && rmsDb != null
+              ? peakDb - rmsDb
+              : null,
           peakCount:
               _parseLastAstatsInt(section, 'Peak count') ??
               _parseLastAstatsInt(section, 'Peak count ch') ??
@@ -1021,14 +1038,12 @@ class _MediaInfo {
 class _LevelMetrics {
   final double peakDb;
   final double rmsDb;
-  final double? dynamicRangeDb;
   final int clippingSamples;
   final List<ChannelAnalysisStats> channelStats;
 
   const _LevelMetrics({
     required this.peakDb,
     required this.rmsDb,
-    this.dynamicRangeDb,
     this.clippingSamples = 0,
     this.channelStats = const [],
   });

@@ -1389,6 +1389,7 @@ class FFmpegService {
   }) async {
     final tempDir = await getTemporaryDirectory();
     final tempOutput = _nextTempEmbedPath(tempDir.path, '.mp3');
+    final lyrics = _extractLyricsForId3(metadata);
 
     // Try with -c:a copy first (fastest, preserves original codec)
     var result = await _runMp3Embed(
@@ -1401,7 +1402,11 @@ class FFmpegService {
     );
 
     if (result.success) {
-      return await _finalizeMp3Embed(mp3Path, tempOutput);
+      final embeddedPath = await _finalizeMp3Embed(mp3Path, tempOutput);
+      if (embeddedPath != null && lyrics != null) {
+        await _ensureMp3UnsyncedLyricsFrame(embeddedPath, lyrics);
+      }
+      return embeddedPath;
     }
 
     // If copy failed (e.g. AAC/Opus in .mp3 container), re-encode to real MP3
@@ -1427,7 +1432,11 @@ class FFmpegService {
       );
 
       if (result.success) {
-        return await _finalizeMp3Embed(mp3Path, reencodeOutput);
+        final embeddedPath = await _finalizeMp3Embed(mp3Path, reencodeOutput);
+        if (embeddedPath != null && lyrics != null) {
+          await _ensureMp3UnsyncedLyricsFrame(embeddedPath, lyrics);
+        }
+        return embeddedPath;
       }
 
       try {
@@ -1537,6 +1546,204 @@ class FFmpegService {
       _log.e('Failed to replace MP3 file after metadata embed: $e');
       return null;
     }
+  }
+
+  static String? _extractLyricsForId3(Map<String, String>? metadata) {
+    if (metadata == null) return null;
+
+    String? fallback;
+    for (final entry in metadata.entries) {
+      final key = entry.key.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+      if (key != 'UNSYNCEDLYRICS' && key != 'LYRICS') continue;
+
+      final value = entry.value;
+      if (value.trim().isEmpty) continue;
+      if (key == 'UNSYNCEDLYRICS') return value;
+      fallback ??= value;
+    }
+
+    return fallback;
+  }
+
+  static Future<void> _ensureMp3UnsyncedLyricsFrame(
+    String mp3Path,
+    String lyrics,
+  ) async {
+    try {
+      final file = File(mp3Path);
+      if (!await file.exists()) return;
+
+      final bytes = await file.readAsBytes();
+      final updated = _writeId3v23UnsyncedLyrics(bytes, lyrics);
+      if (updated == null) {
+        _log.w('Skipping MP3 USLT lyrics frame update: unsupported ID3 tag');
+        return;
+      }
+
+      await file.writeAsBytes(updated, flush: true);
+      _log.d('MP3 USLT lyrics frame written (${lyrics.length} chars)');
+    } catch (e) {
+      _log.w('Failed to write MP3 USLT lyrics frame: $e');
+    }
+  }
+
+  static Uint8List? _writeId3v23UnsyncedLyrics(Uint8List bytes, String lyrics) {
+    final lyricsFrame = _buildId3v23UnsyncedLyricsFrame(lyrics);
+
+    if (!_hasId3Header(bytes)) {
+      final builder = BytesBuilder(copy: false)
+        ..add(_buildId3v23Tag(lyricsFrame))
+        ..add(bytes);
+      return builder.toBytes();
+    }
+
+    if (bytes.length < 10 || bytes[3] != 3) {
+      return null;
+    }
+
+    final flags = bytes[5];
+    const unsupportedFlags = 0x80 | 0x40 | 0x20;
+    if ((flags & unsupportedFlags) != 0) {
+      return null;
+    }
+
+    final tagSize = _readSynchsafeInt(bytes, 6);
+    if (tagSize == null) return null;
+
+    final tagEnd = 10 + tagSize;
+    if (tagEnd < 10 || tagEnd > bytes.length) {
+      return null;
+    }
+
+    final tagPayload = bytes.sublist(10, tagEnd);
+    final preservedFrames = _removeId3v23Frames(tagPayload, {'USLT'});
+    final newPayload = BytesBuilder(copy: false)
+      ..add(preservedFrames)
+      ..add(lyricsFrame);
+
+    final newTag = _buildId3v23Tag(newPayload.toBytes());
+    final builder = BytesBuilder(copy: false)
+      ..add(newTag)
+      ..add(bytes.sublist(tagEnd));
+    return builder.toBytes();
+  }
+
+  static bool _hasId3Header(Uint8List bytes) {
+    return bytes.length >= 10 &&
+        bytes[0] == 0x49 &&
+        bytes[1] == 0x44 &&
+        bytes[2] == 0x33;
+  }
+
+  static Uint8List _removeId3v23Frames(
+    Uint8List tagPayload,
+    Set<String> frameIds,
+  ) {
+    final builder = BytesBuilder(copy: false);
+    var offset = 0;
+
+    while (offset + 10 <= tagPayload.length) {
+      final idBytes = tagPayload.sublist(offset, offset + 4);
+      if (idBytes.every((byte) => byte == 0)) break;
+
+      final frameId = ascii.decode(idBytes, allowInvalid: true);
+      if (!RegExp(r'^[A-Z0-9]{4}$').hasMatch(frameId)) break;
+
+      final frameSize = _readUint32(tagPayload, offset + 4);
+      if (frameSize <= 0 || offset + 10 + frameSize > tagPayload.length) {
+        break;
+      }
+
+      if (!frameIds.contains(frameId)) {
+        builder.add(tagPayload.sublist(offset, offset + 10 + frameSize));
+      }
+
+      offset += 10 + frameSize;
+    }
+
+    return builder.toBytes();
+  }
+
+  static Uint8List _buildId3v23Tag(Uint8List payload) {
+    final header = Uint8List(10)
+      ..[0] = 0x49
+      ..[1] = 0x44
+      ..[2] = 0x33
+      ..[3] = 3;
+
+    final size = _writeSynchsafeInt(payload.length);
+    header.setRange(6, 10, size);
+
+    final builder = BytesBuilder(copy: false)
+      ..add(header)
+      ..add(payload);
+    return builder.toBytes();
+  }
+
+  static Uint8List _buildId3v23UnsyncedLyricsFrame(String lyrics) {
+    final payload = BytesBuilder(copy: false)
+      ..add(const [0x01, 0x65, 0x6e, 0x67])
+      ..add(const [0xff, 0xfe, 0x00, 0x00])
+      ..add(_utf16LeWithBom(lyrics));
+
+    return _buildId3v23Frame('USLT', payload.toBytes());
+  }
+
+  static Uint8List _buildId3v23Frame(String frameId, Uint8List payload) {
+    final header = Uint8List(10);
+    header.setRange(0, 4, ascii.encode(frameId));
+    final size = _writeUint32(payload.length);
+    header.setRange(4, 8, size);
+
+    final builder = BytesBuilder(copy: false)
+      ..add(header)
+      ..add(payload);
+    return builder.toBytes();
+  }
+
+  static Uint8List _utf16LeWithBom(String value) {
+    final bytes = BytesBuilder(copy: false)..add(const [0xff, 0xfe]);
+    for (final codeUnit in value.codeUnits) {
+      bytes.add([codeUnit & 0xff, (codeUnit >> 8) & 0xff]);
+    }
+    return bytes.toBytes();
+  }
+
+  static int? _readSynchsafeInt(Uint8List bytes, int offset) {
+    if (offset + 4 > bytes.length) return null;
+
+    final b0 = bytes[offset];
+    final b1 = bytes[offset + 1];
+    final b2 = bytes[offset + 2];
+    final b3 = bytes[offset + 3];
+    if ((b0 | b1 | b2 | b3) & 0x80 != 0) return null;
+
+    return (b0 << 21) | (b1 << 14) | (b2 << 7) | b3;
+  }
+
+  static Uint8List _writeSynchsafeInt(int value) {
+    return Uint8List.fromList([
+      (value >> 21) & 0x7f,
+      (value >> 14) & 0x7f,
+      (value >> 7) & 0x7f,
+      value & 0x7f,
+    ]);
+  }
+
+  static int _readUint32(Uint8List bytes, int offset) {
+    return (bytes[offset] << 24) |
+        (bytes[offset + 1] << 16) |
+        (bytes[offset + 2] << 8) |
+        bytes[offset + 3];
+  }
+
+  static Uint8List _writeUint32(int value) {
+    return Uint8List.fromList([
+      (value >> 24) & 0xff,
+      (value >> 16) & 0xff,
+      (value >> 8) & 0xff,
+      value & 0xff,
+    ]);
   }
 
   static Future<String?> embedMetadataToOpus({
