@@ -10,6 +10,7 @@ import 'package:spotiflac_android/services/ffmpeg_service.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/services/history_database.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
+import 'package:spotiflac_android/utils/audio_conversion_utils.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/image_cache_utils.dart';
 import 'package:spotiflac_android/utils/lyrics_metadata_helper.dart';
@@ -950,8 +951,12 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
           : item.filePath.toLowerCase();
       final ext = nameToCheck.endsWith('.flac')
           ? 'FLAC'
+          : nameToCheck.endsWith('.alac')
+          ? 'ALAC'
           : nameToCheck.endsWith('.m4a')
           ? 'M4A'
+          : (nameToCheck.endsWith('.aac') || nameToCheck.endsWith('.mp4a'))
+          ? 'AAC'
           : nameToCheck.endsWith('.mp3')
           ? 'MP3'
           : (nameToCheck.endsWith('.opus') || nameToCheck.endsWith('.ogg'))
@@ -960,11 +965,11 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
       if (ext != null) sourceFormats.add(ext);
     }
 
-    final formats = ['ALAC', 'FLAC', 'MP3', 'Opus'].where((target) {
+    final formats = ['ALAC', 'FLAC', 'AAC', 'MP3', 'Opus'].where((target) {
       return sourceFormats.any((src) {
         if (src == target) return false;
         final isLosslessTarget = target == 'ALAC' || target == 'FLAC';
-        final isLosslessSource = src == 'FLAC' || src == 'M4A';
+        final isLosslessSource = src == 'FLAC' || src == 'ALAC' || src == 'M4A';
         if (isLosslessTarget && !isLosslessSource) return false;
         return true;
       });
@@ -975,9 +980,15 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
     String selectedFormat = formats.first;
     bool isLosslessTarget =
         selectedFormat == 'ALAC' || selectedFormat == 'FLAC';
+    String defaultBitrateForFormat(String format) {
+      if (format == 'Opus') return '128k';
+      if (format == 'AAC') return '256k';
+      return '320k';
+    }
+
     String selectedBitrate = isLosslessTarget
         ? '320k'
-        : (selectedFormat == 'Opus' ? '128k' : '320k');
+        : defaultBitrateForFormat(selectedFormat);
 
     showModalBottomSheet<void>(
       context: context,
@@ -1039,9 +1050,9 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
                                 isLosslessTarget =
                                     format == 'ALAC' || format == 'FLAC';
                                 if (!isLosslessTarget) {
-                                  selectedBitrate = format == 'Opus'
-                                      ? '128k'
-                                      : '320k';
+                                  selectedBitrate = defaultBitrateForFormat(
+                                    format,
+                                  );
                                 }
                               });
                             }
@@ -1316,6 +1327,7 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
                 mimeType = 'audio/opus';
                 break;
               case 'alac':
+              case 'aac':
                 newExt = '.m4a';
                 mimeType = 'audio/mp4';
                 break;
@@ -1350,14 +1362,21 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
               continue;
             }
 
-            try {
-              await PlatformBridge.safDelete(item.filePath);
-            } catch (_) {}
+            if (!isSameContentUri(item.filePath, safUri)) {
+              try {
+                await PlatformBridge.safDelete(item.filePath);
+              } catch (_) {}
+            }
             await historyDb.updateFilePath(
               item.id,
               safUri,
               newSafFileName: newFileName,
               newQuality: newQuality,
+              newFormat: normalizedConvertedAudioFormat(targetFormat),
+              newBitrate: convertedAudioBitrateKbps(
+                targetFormat: targetFormat,
+                bitrate: bitrate,
+              ),
               clearAudioSpecs: true,
             );
           }
@@ -1374,6 +1393,11 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
             item.id,
             newPath,
             newQuality: newQuality,
+            newFormat: normalizedConvertedAudioFormat(targetFormat),
+            newBitrate: convertedAudioBitrateKbps(
+              targetFormat: targetFormat,
+              bitrate: bitrate,
+            ),
             clearAudioSpecs: true,
           );
         }

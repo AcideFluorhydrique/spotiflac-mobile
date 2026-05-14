@@ -17,6 +17,7 @@ import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/services/ffmpeg_service.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
+import 'package:spotiflac_android/utils/audio_conversion_utils.dart';
 import 'package:spotiflac_android/utils/logger.dart';
 import 'package:spotiflac_android/utils/lyrics_metadata_helper.dart';
 import 'package:spotiflac_android/utils/mime_utils.dart';
@@ -3375,6 +3376,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
     final lower = cleanFilePath.toLowerCase();
     return lower.endsWith('.flac') ||
         lower.endsWith('.m4a') ||
+        lower.endsWith('.aac') ||
         lower.endsWith('.mp3') ||
         lower.endsWith('.opus') ||
         lower.endsWith('.ogg');
@@ -3409,8 +3411,12 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
         case 'flac':
           return 'FLAC';
         case 'alac':
+          return 'ALAC';
         case 'm4a':
           return 'M4A';
+        case 'aac':
+        case 'mp4a':
+          return 'AAC';
         case 'mp3':
           return 'MP3';
         case 'opus':
@@ -3421,6 +3427,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
     final lower = cleanFilePath.toLowerCase();
     if (lower.endsWith('.flac')) return 'FLAC';
     if (lower.endsWith('.m4a')) return 'M4A';
+    if (lower.endsWith('.aac')) return 'AAC';
     if (lower.endsWith('.mp3')) return 'MP3';
     if (lower.endsWith('.opus') || lower.endsWith('.ogg')) return 'Opus';
     if (lower.endsWith('.cue')) return 'CUE';
@@ -3554,8 +3561,12 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
     final formats = <String>[];
     if (currentFormat == 'FLAC') {
       formats.addAll(['ALAC', 'AAC', 'MP3', 'Opus']);
-    } else if (currentFormat == 'M4A') {
+    } else if (currentFormat == 'ALAC') {
       formats.addAll(['FLAC', 'AAC', 'MP3', 'Opus']);
+    } else if (currentFormat == 'M4A') {
+      formats.addAll(['ALAC', 'FLAC', 'AAC', 'MP3', 'Opus']);
+    } else if (currentFormat == 'AAC') {
+      formats.addAll(['MP3', 'Opus']);
     } else if (currentFormat == 'MP3') {
       formats.addAll(['AAC', 'Opus']);
     } else if (currentFormat == 'Opus') {
@@ -4448,11 +4459,15 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
           return;
         }
 
-        final deletedOriginal = await PlatformBridge.safDelete(
-          cleanFilePath,
-        ).catchError((_) => false);
-        if (deletedOriginal != true) {
-          _log.w('Converted SAF file created but failed deleting original URI');
+        if (!isSameContentUri(cleanFilePath, safUri)) {
+          final deletedOriginal = await PlatformBridge.safDelete(
+            cleanFilePath,
+          ).catchError((_) => false);
+          if (deletedOriginal != true) {
+            _log.w(
+              'Converted SAF file created but failed deleting original URI',
+            );
+          }
         }
 
         if (!_isLocalItem) {
@@ -4461,6 +4476,11 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
             safUri,
             newSafFileName: newFileName,
             newQuality: newQuality,
+            newFormat: normalizedConvertedAudioFormat(targetFormat),
+            newBitrate: convertedAudioBitrateKbps(
+              targetFormat: targetFormat,
+              bitrate: bitrate,
+            ),
             clearAudioSpecs: true,
           );
           await ref.read(downloadHistoryProvider.notifier).reloadFromStorage();
@@ -4488,6 +4508,11 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
             _downloadItem!.id,
             newPath,
             newQuality: newQuality,
+            newFormat: normalizedConvertedAudioFormat(targetFormat),
+            newBitrate: convertedAudioBitrateKbps(
+              targetFormat: targetFormat,
+              bitrate: bitrate,
+            ),
             clearAudioSpecs: true,
           );
           await ref.read(downloadHistoryProvider.notifier).reloadFromStorage();

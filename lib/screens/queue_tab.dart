@@ -10,6 +10,7 @@ import 'package:spotiflac_android/services/ffmpeg_service.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/utils/app_bar_layout.dart';
+import 'package:spotiflac_android/utils/audio_conversion_utils.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/lyrics_metadata_helper.dart';
 import 'package:spotiflac_android/models/download_item.dart';
@@ -4839,46 +4840,39 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     for (final id in _selectedIds) {
       final item = itemsById[id];
       if (item == null) continue;
-      String nameToCheck;
-      if (item.historyItem?.safFileName != null &&
-          item.historyItem!.safFileName!.isNotEmpty) {
-        nameToCheck = item.historyItem!.safFileName!.toLowerCase();
-      } else if (item.localItem?.format != null &&
-          item.localItem!.format!.isNotEmpty) {
-        nameToCheck = '.${item.localItem!.format!.toLowerCase()}';
-      } else {
-        nameToCheck = item.filePath.toLowerCase();
-      }
-      final ext = nameToCheck.endsWith('.flac')
-          ? 'FLAC'
-          : nameToCheck.endsWith('.m4a')
-          ? 'M4A'
-          : nameToCheck.endsWith('.mp3')
-          ? 'MP3'
-          : (nameToCheck.endsWith('.opus') || nameToCheck.endsWith('.ogg'))
-          ? 'Opus'
-          : null;
-      if (ext != null) sourceFormats.add(ext);
+      final sourceFormat = convertibleAudioSourceFormat(
+        storedFormat: item.localItem?.format ?? item.historyItem?.format,
+        filePath: item.filePath,
+        fileName: item.historyItem?.safFileName,
+      );
+      if (sourceFormat != null) sourceFormats.add(sourceFormat);
     }
 
-    final formats = ['ALAC', 'FLAC', 'MP3', 'Opus'].where((target) {
-      return sourceFormats.any((src) {
-        if (src == target) return false;
-        final isLosslessTarget = target == 'ALAC' || target == 'FLAC';
-        final isLosslessSource = src == 'FLAC' || src == 'M4A';
-        if (isLosslessTarget && !isLosslessSource) return false;
-        return true;
-      });
-    }).toList();
+    final formats = audioConversionTargetFormats
+        .where(
+          (target) => sourceFormats.any(
+            (source) => canConvertAudioFormat(
+              sourceFormat: source,
+              targetFormat: target,
+            ),
+          ),
+        )
+        .toList();
 
     if (formats.isEmpty) return;
 
     String selectedFormat = formats.first;
     bool isLosslessTarget =
         selectedFormat == 'ALAC' || selectedFormat == 'FLAC';
+    String defaultBitrateForFormat(String format) {
+      if (format == 'Opus') return '128k';
+      if (format == 'AAC') return '256k';
+      return '320k';
+    }
+
     String selectedBitrate = isLosslessTarget
         ? '320k'
-        : (selectedFormat == 'Opus' ? '128k' : '320k');
+        : defaultBitrateForFormat(selectedFormat);
     var didStartConversion = false;
 
     _hideSelectionOverlay();
@@ -4944,9 +4938,9 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                                 isLosslessTarget =
                                     format == 'ALAC' || format == 'FLAC';
                                 if (!isLosslessTarget) {
-                                  selectedBitrate = format == 'Opus'
-                                      ? '128k'
-                                      : '320k';
+                                  selectedBitrate = defaultBitrateForFormat(
+                                    format,
+                                  );
                                 }
                               });
                             }
@@ -5057,29 +5051,18 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     for (final id in _selectedIds) {
       final item = itemsById[id];
       if (item == null) continue;
-      String nameToCheck;
-      if (item.historyItem?.safFileName != null &&
-          item.historyItem!.safFileName!.isNotEmpty) {
-        nameToCheck = item.historyItem!.safFileName!.toLowerCase();
-      } else if (item.localItem?.format != null &&
-          item.localItem!.format!.isNotEmpty) {
-        nameToCheck = '.${item.localItem!.format!.toLowerCase()}';
-      } else {
-        nameToCheck = item.filePath.toLowerCase();
+      final sourceFormat = convertibleAudioSourceFormat(
+        storedFormat: item.localItem?.format ?? item.historyItem?.format,
+        filePath: item.filePath,
+        fileName: item.historyItem?.safFileName,
+      );
+      if (sourceFormat == null ||
+          !canConvertAudioFormat(
+            sourceFormat: sourceFormat,
+            targetFormat: targetFormat,
+          )) {
+        continue;
       }
-      final ext = nameToCheck.endsWith('.flac')
-          ? 'FLAC'
-          : nameToCheck.endsWith('.m4a')
-          ? 'M4A'
-          : nameToCheck.endsWith('.mp3')
-          ? 'MP3'
-          : (nameToCheck.endsWith('.opus') || nameToCheck.endsWith('.ogg'))
-          ? 'Opus'
-          : null;
-      if (ext == null || ext == targetFormat) continue;
-      final isLosslessTarget = targetFormat == 'ALAC' || targetFormat == 'FLAC';
-      final isLosslessSource = ext == 'FLAC' || ext == 'M4A';
-      if (isLosslessTarget && !isLosslessSource) continue;
       selectedItems.add(item);
     }
 
@@ -5247,6 +5230,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                 mimeType = 'audio/opus';
                 break;
               case 'alac':
+              case 'aac':
                 newExt = '.m4a';
                 mimeType = 'audio/mp4';
                 break;
@@ -5281,15 +5265,22 @@ class _QueueTabState extends ConsumerState<QueueTab> {
               continue;
             }
 
-            try {
-              await PlatformBridge.safDelete(item.filePath);
-            } catch (_) {}
+            if (!isSameContentUri(item.filePath, safUri)) {
+              try {
+                await PlatformBridge.safDelete(item.filePath);
+              } catch (_) {}
+            }
 
             await historyDb.updateFilePath(
               hi.id,
               safUri,
               newSafFileName: newFileName,
               newQuality: newQuality,
+              newFormat: normalizedConvertedAudioFormat(targetFormat),
+              newBitrate: convertedAudioBitrateKbps(
+                targetFormat: targetFormat,
+                bitrate: bitrate,
+              ),
               clearAudioSpecs: true,
             );
           }
@@ -5352,6 +5343,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                 mimeType = 'audio/opus';
                 break;
               case 'alac':
+              case 'aac':
                 newExt = '.m4a';
                 mimeType = 'audio/mp4';
                 break;
@@ -5386,9 +5378,11 @@ class _QueueTabState extends ConsumerState<QueueTab> {
               continue;
             }
 
-            try {
-              await PlatformBridge.safDelete(item.filePath);
-            } catch (_) {}
+            if (!isSameContentUri(item.filePath, safUri)) {
+              try {
+                await PlatformBridge.safDelete(item.filePath);
+              } catch (_) {}
+            }
             await LibraryDatabase.instance.replaceWithConvertedItem(
               item: item.localItem!,
               newFilePath: safUri,
@@ -5410,6 +5404,11 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             item.historyItem!.id,
             newPath,
             newQuality: newQuality,
+            newFormat: normalizedConvertedAudioFormat(targetFormat),
+            newBitrate: convertedAudioBitrateKbps(
+              targetFormat: targetFormat,
+              bitrate: bitrate,
+            ),
             clearAudioSpecs: true,
           );
         } else if (item.localItem != null) {

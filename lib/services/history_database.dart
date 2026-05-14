@@ -925,6 +925,8 @@ class HistoryDatabase {
     String? newQuality,
     int? newBitDepth,
     int? newSampleRate,
+    int? newBitrate,
+    String? newFormat,
     bool clearAudioSpecs = false,
   }) async {
     final db = await database;
@@ -935,9 +937,18 @@ class HistoryDatabase {
     if (newQuality != null) {
       values['quality'] = newQuality;
     }
+    if (newFormat != null) {
+      values['format'] = newFormat;
+    }
+    if (newBitrate != null) {
+      values['bitrate'] = newBitrate;
+    }
     if (clearAudioSpecs) {
       values['bit_depth'] = null;
       values['sample_rate'] = null;
+      if (newBitrate == null) {
+        values['bitrate'] = null;
+      }
     } else {
       if (newBitDepth != null) {
         values['bit_depth'] = newBitDepth;
