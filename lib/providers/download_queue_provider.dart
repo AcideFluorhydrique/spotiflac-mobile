@@ -2340,7 +2340,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             );
           } else {
             _log.d(
-              'Progress [$itemId]: ${(percentage * 100).toStringAsFixed(1)}% (DASH segments/unknown size) @ ${speedMBps.toStringAsFixed(2)} MB/s',
+              'Progress [$itemId]: ${(percentage * 100).toStringAsFixed(1)}% (stream/unknown size) @ ${speedMBps.toStringAsFixed(2)} MB/s',
             );
           }
         }

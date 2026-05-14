@@ -244,7 +244,7 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 	}
 
 	contentLength := resp.ContentLength
-	shouldTrackItemBytes := activeItemID != "" && onProgress == nil
+	shouldTrackItemBytes := activeItemID != ""
 	if shouldTrackItemBytes && contentLength > 0 {
 		SetItemBytesTotal(activeItemID, contentLength)
 	}
@@ -298,6 +298,14 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 				})
 			}
 			break
+		}
+	}
+
+	if shouldTrackItemBytes {
+		if contentLength > 0 {
+			SetItemProgress(activeItemID, float64(written)/float64(contentLength), written, contentLength)
+		} else if written > 0 {
+			SetItemBytesReceived(activeItemID, written)
 		}
 	}
 
@@ -383,7 +391,7 @@ func (r *extensionRuntime) fileDownloadChunked(client *http.Client, urlStr, full
 		SetItemDownloading(activeItemID)
 	}
 
-	shouldTrackItemBytes := activeItemID != "" && onProgress == nil
+	shouldTrackItemBytes := activeItemID != ""
 	if shouldTrackItemBytes && totalSize > 0 {
 		SetItemBytesTotal(activeItemID, totalSize)
 	}
@@ -523,6 +531,14 @@ func (r *extensionRuntime) fileDownloadChunked(client *http.Client, urlStr, full
 		// Unknown size: if we got less than chunk size, assume done
 		if totalSize <= 0 && chunkWritten < chunkSize {
 			break
+		}
+	}
+
+	if shouldTrackItemBytes {
+		if totalSize > 0 {
+			SetItemProgress(activeItemID, float64(totalWritten)/float64(totalSize), totalWritten, totalSize)
+		} else if totalWritten > 0 {
+			SetItemBytesReceived(activeItemID, totalWritten)
 		}
 	}
 

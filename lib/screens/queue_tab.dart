@@ -42,6 +42,49 @@ import 'package:spotiflac_android/widgets/animation_utils.dart';
 part 'queue_tab_helpers.dart';
 part 'queue_tab_widgets.dart';
 
+String _formatDownloadSizeMB(num bytes) {
+  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+}
+
+String _formatDownloadProgressLabel(BuildContext context, DownloadItem item) {
+  final progress = item.progress.clamp(0.0, 1.0);
+  final speedSuffix = item.speedMBps > 0
+      ? ' • ${item.speedMBps.toStringAsFixed(1)} MB/s'
+      : '';
+
+  if (item.bytesTotal > 0) {
+    final received = item.bytesReceived > 0
+        ? item.bytesReceived
+        : item.bytesTotal * progress;
+    final percent = (progress * 100).toStringAsFixed(0);
+    return '${_formatDownloadSizeMB(received)} / ${_formatDownloadSizeMB(item.bytesTotal)} • $percent%$speedSuffix';
+  }
+
+  if (item.bytesReceived > 0) {
+    final canEstimateTotal = progress > 0.01 && progress < 0.995;
+    if (canEstimateTotal) {
+      final estimatedTotal = item.bytesReceived / progress;
+      if (estimatedTotal > item.bytesReceived) {
+        return '${_formatDownloadSizeMB(item.bytesReceived)} / ~${_formatDownloadSizeMB(estimatedTotal)}$speedSuffix';
+      }
+    }
+    return '${_formatDownloadSizeMB(item.bytesReceived)}$speedSuffix';
+  }
+
+  if (progress > 0) {
+    final percent = (progress * 100).toStringAsFixed(0);
+    return '$percent%$speedSuffix';
+  }
+
+  if (item.speedMBps > 0) {
+    return context.l10n.queueDownloadSpeedStatus(
+      item.speedMBps.toStringAsFixed(1),
+    );
+  }
+
+  return context.l10n.queueDownloadStarting;
+}
+
 class QueueTab extends ConsumerStatefulWidget {
   final PageController? parentPageController;
   final int parentPageIndex;
@@ -5591,51 +5634,31 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                               ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                         if (item.status == DownloadStatus.downloading) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: LinearProgressIndicator(
-                                    value: item.progress > 0
-                                        ? item.progress
-                                        : null,
-                                    backgroundColor:
-                                        colorScheme.surfaceContainerHighest,
+                          const SizedBox(height: 6),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              _formatDownloadProgressLabel(context, item),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.right,
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
                                     color: colorScheme.primary,
-                                    minHeight: 6,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                item.bytesTotal > 0
-                                    ? '${(item.progress * 100).toStringAsFixed(0)}%'
-                                    : (item.bytesReceived > 0
-                                          ? '${(item.bytesReceived / (1024 * 1024)).toStringAsFixed(1)} MB${item.speedMBps > 0 ? ' • ${item.speedMBps.toStringAsFixed(1)} MB/s' : ''}'
-                                          : (item.progress > 0
-                                                ? (item.speedMBps > 0
-                                                      ? '${(item.progress * 100).toStringAsFixed(0)}% • ${item.speedMBps.toStringAsFixed(1)} MB/s'
-                                                      : '${(item.progress * 100).toStringAsFixed(0)}%')
-                                                : (item.speedMBps > 0
-                                                      ? context.l10n
-                                                            .queueDownloadSpeedStatus(
-                                                              item.speedMBps
-                                                                  .toStringAsFixed(
-                                                                    1,
-                                                                  ),
-                                                            )
-                                                      : context
-                                                            .l10n
-                                                            .queueDownloadStarting))),
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(
-                                      color: colorScheme.primary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                              ),
-                            ],
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: item.progress > 0 ? item.progress : null,
+                              backgroundColor:
+                                  colorScheme.surfaceContainerHighest,
+                              color: colorScheme.primary,
+                              minHeight: 6,
+                            ),
                           ),
                         ],
                         if (item.status == DownloadStatus.failed) ...[
