@@ -498,7 +498,7 @@
   "@aboutSjdonadoDesc": {
     "description": "Credit description for sjdonado"
   },
-  "aboutAppDescription": "Search music metadata, manage extensions, and organize your library.",
+  "aboutAppDescription": "Busca metadatos musicales, gestiona extensiones y organiza tu biblioteca.",
   "@aboutAppDescription": {
     "description": "App description in header card"
   },
@@ -1962,11 +1962,11 @@
   "@extensionsErrorLoading": {
     "description": "Error message when extension fails to load"
   },
-  "qualityFlacLossless": "FLAC Lossless",
+  "qualityFlacLossless": "FLAC sin pérdida",
   "@qualityFlacLossless": {
     "description": "Quality option - CD quality FLAC"
   },
-  "qualityFlacLosslessSubtitle": "16-bit / 44.1kHz",
+  "qualityFlacLosslessSubtitle": "16-bit / 44,1 kHz",
   "@qualityFlacLosslessSubtitle": {
     "description": "Technical spec for lossless"
   },
@@ -2010,11 +2010,11 @@
   "@downloadLossyMp3Subtitle": {
     "description": "Subtitle for MP3 320kbps Tidal lossy option"
   },
-  "downloadLossyAac": "AAC/M4A 320kbps",
+  "downloadLossyAac": "AAC/M4A 320 kbps",
   "@downloadLossyAac": {
     "description": "Tidal lossy format option - AAC in M4A container at 320kbps"
   },
-  "downloadLossyAacSubtitle": "Best mobile compatibility, M4A container",
+  "downloadLossyAacSubtitle": "La mejor compatibilidad con dispositivos móviles, formato M4A",
   "@downloadLossyAacSubtitle": {
     "description": "Subtitle for AAC/M4A 320kbps Tidal lossy option"
   },
@@ -2583,7 +2583,7 @@
       }
     }
   },
-  "libraryCleared": "Library cleared",
+  "libraryCleared": "Biblioteca vaciada",
   "@libraryCleared": {
     "description": "Snackbar after clearing library"
   },
@@ -2599,11 +2599,11 @@
   "@libraryFolderNotExist": {
     "description": "Error when folder doesn't exist"
   },
-  "librarySourceDownloaded": "Downloaded",
+  "librarySourceDownloaded": "Descargado",
   "@librarySourceDownloaded": {
     "description": "Badge for tracks downloaded via SpotiFLAC"
   },
-  "librarySourceLocal": "Local",
+  "librarySourceLocal": "En el dispositivo",
   "@librarySourceLocal": {
     "description": "Badge for tracks from local library scan"
   },
@@ -2615,11 +2615,11 @@
   "@libraryFilterDownloaded": {
     "description": "Filter chip - show only downloaded items"
   },
-  "libraryFilterLocal": "Local",
+  "libraryFilterLocal": "En el dispositivo",
   "@libraryFilterLocal": {
     "description": "Filter chip - show only local library items"
   },
-  "libraryFilterTitle": "Filters",
+  "libraryFilterTitle": "Filtros",
   "@libraryFilterTitle": {
     "description": "Filter bottom sheet title"
   },
@@ -2627,15 +2627,15 @@
   "@libraryFilterReset": {
     "description": "Reset all filters button"
   },
-  "libraryFilterApply": "Apply",
+  "libraryFilterApply": "Aplicar",
   "@libraryFilterApply": {
     "description": "Apply filters button"
   },
-  "libraryFilterSource": "Source",
+  "libraryFilterSource": "Fuente",
   "@libraryFilterSource": {
     "description": "Filter section - source type"
   },
-  "libraryFilterQuality": "Quality",
+  "libraryFilterQuality": "Calidad",
   "@libraryFilterQuality": {
     "description": "Filter section - audio quality"
   },
