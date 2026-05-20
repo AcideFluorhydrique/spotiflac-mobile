@@ -594,6 +594,14 @@ func selectBestReEnrichTrack(req reEnrichRequest, tracks []ExtTrackMetadata) *Ex
 	downloadReq := reEnrichDownloadRequest(req)
 	currentISRC := strings.TrimSpace(req.ISRC)
 	currentAlbum := strings.TrimSpace(req.AlbumName)
+	effectiveTrackName := req.TrackName
+	if isPlaceholderReEnrichValue(effectiveTrackName) {
+		effectiveTrackName = ""
+	}
+	effectiveArtistName := req.ArtistName
+	if isPlaceholderReEnrichValue(effectiveArtistName) {
+		effectiveArtistName = ""
+	}
 	var best *ExtTrackMetadata
 	bestScore := -1 << 30
 
@@ -601,8 +609,8 @@ func selectBestReEnrichTrack(req reEnrichRequest, tracks []ExtTrackMetadata) *Ex
 		track := &tracks[i]
 		score := 0
 		exactISRCMatch := currentISRC != "" && strings.EqualFold(currentISRC, strings.TrimSpace(track.ISRC))
-		titleMatches := req.TrackName != "" && track.Name != "" && titlesMatch(req.TrackName, track.Name)
-		artistMatches := req.ArtistName != "" && track.Artists != "" && artistsMatch(req.ArtistName, track.Artists)
+		titleMatches := effectiveTrackName != "" && track.Name != "" && titlesMatch(effectiveTrackName, track.Name)
+		artistMatches := effectiveArtistName != "" && track.Artists != "" && artistsMatch(effectiveArtistName, track.Artists)
 		albumMatches := currentAlbum != "" && track.AlbumName != "" && titlesMatch(currentAlbum, track.AlbumName)
 
 		resolved := resolvedTrackInfo{
@@ -614,16 +622,16 @@ func selectBestReEnrichTrack(req reEnrichRequest, tracks []ExtTrackMetadata) *Ex
 		verified := trackMatchesRequest(downloadReq, resolved, "ReEnrich")
 
 		if !exactISRCMatch {
-			if req.TrackName != "" && !titleMatches {
+			if effectiveTrackName != "" && !titleMatches {
 				continue
 			}
-			if req.ArtistName != "" && !artistMatches {
+			if effectiveArtistName != "" && !artistMatches {
 				continue
 			}
-			if req.TrackName == "" && req.ArtistName == "" && currentAlbum != "" && !albumMatches {
+			if effectiveTrackName == "" && effectiveArtistName == "" && currentAlbum != "" && !albumMatches {
 				continue
 			}
-			if req.TrackName == "" && req.ArtistName == "" && currentAlbum == "" && !verified {
+			if effectiveTrackName == "" && effectiveArtistName == "" && currentAlbum == "" && !verified {
 				continue
 			}
 		}

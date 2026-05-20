@@ -643,6 +643,9 @@ class _EditMetadataSheetState extends State<_EditMetadataSheet> {
     if (currentTitle.isNotEmpty) {
       return titleMatches;
     }
+    if (currentAlbum.isNotEmpty) {
+      return albumMatches;
+    }
 
     return false;
   }

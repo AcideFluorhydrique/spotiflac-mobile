@@ -463,6 +463,34 @@ func TestSelectBestReEnrichTrackAllowsExactISRCDespiteMetadataMismatch(t *testin
 	}
 }
 
+func TestSelectBestReEnrichTrackPlaceholderFallsBackToAlbum(t *testing.T) {
+	req := reEnrichRequest{
+		TrackName:  "Unknown Title",
+		ArtistName: "Unknown Artist",
+		AlbumName:  "Harry Styles",
+		DurationMs: 180000,
+	}
+
+	tracks := []ExtTrackMetadata{
+		{
+			ID:         "album-match",
+			Name:       "Sign of the Times",
+			Artists:    "Harry Styles",
+			AlbumName:  "Harry Styles",
+			DurationMS: 180000,
+			ProviderID: "deezer",
+		},
+	}
+
+	best := selectBestReEnrichTrack(req, tracks)
+	if best == nil {
+		t.Fatal("expected album-matching candidate to be selected when title/artist are placeholders")
+	}
+	if best.ID != "album-match" {
+		t.Fatalf("selected track = %q, want album-match", best.ID)
+	}
+}
+
 func TestBuildReEnrichFFmpegMetadataOmitsEmptyFields(t *testing.T) {
 	req := reEnrichRequest{
 		TrackName:   "Song",
