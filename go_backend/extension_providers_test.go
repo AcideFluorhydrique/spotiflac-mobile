@@ -93,6 +93,125 @@ func TestSetProviderPriorityRemovesRetiredDeezerDownloader(t *testing.T) {
 	}
 }
 
+func TestSetProviderPriorityKeepsExtensionNamedLikeRetiredDownloader(t *testing.T) {
+	original := GetProviderPriority()
+	defer SetProviderPriority(original)
+
+	manager := getExtensionManager()
+	ext := newTestLoadedExtension(t, ExtensionTypeDownloadProvider)
+	ext.ID = "deezer"
+	ext.Manifest.Name = "deezer"
+
+	manager.mu.Lock()
+	previous, hadPrevious := manager.extensions[ext.ID]
+	manager.extensions[ext.ID] = ext
+	manager.mu.Unlock()
+	defer func() {
+		manager.mu.Lock()
+		if hadPrevious {
+			manager.extensions[ext.ID] = previous
+		} else {
+			delete(manager.extensions, ext.ID)
+		}
+		manager.mu.Unlock()
+	}()
+
+	SetProviderPriority([]string{"deezer", "custom-ext"})
+
+	got := GetProviderPriority()
+	want := []string{"deezer", "custom-ext"}
+	if len(got) != len(want) {
+		t.Fatalf("unexpected priority length: got %v want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("unexpected priority at %d: got %v want %v", i, got, want)
+		}
+	}
+}
+
+func TestPrioritizeFallbackProvidersByHealthPrefersOnlineAndSkipsOffline(t *testing.T) {
+	manager := getExtensionManager()
+	amazon := newTestLoadedExtension(t, ExtensionTypeDownloadProvider)
+	amazon.ID = "amazon"
+	amazon.Manifest.Name = "amazon"
+	amazon.Manifest.ServiceHealth = []ExtensionHealthCheck{{
+		ID:       "main",
+		URL:      "://bad",
+		Required: true,
+	}}
+
+	plain := newTestLoadedExtension(t, ExtensionTypeDownloadProvider)
+	plain.ID = "plain"
+	plain.Manifest.Name = "plain"
+
+	deezer := newTestLoadedExtension(t, ExtensionTypeDownloadProvider)
+	deezer.ID = "deezer"
+	deezer.Manifest.Name = "deezer"
+	deezer.Manifest.ServiceHealth = []ExtensionHealthCheck{{
+		ID:  "main",
+		URL: "https://example.test/health",
+	}}
+
+	manager.mu.Lock()
+	previousAmazon, hadAmazon := manager.extensions[amazon.ID]
+	previousPlain, hadPlain := manager.extensions[plain.ID]
+	previousDeezer, hadDeezer := manager.extensions[deezer.ID]
+	manager.extensions[amazon.ID] = amazon
+	manager.extensions[plain.ID] = plain
+	manager.extensions[deezer.ID] = deezer
+	manager.mu.Unlock()
+	defer func() {
+		manager.mu.Lock()
+		if hadAmazon {
+			manager.extensions[amazon.ID] = previousAmazon
+		} else {
+			delete(manager.extensions, amazon.ID)
+		}
+		if hadPlain {
+			manager.extensions[plain.ID] = previousPlain
+		} else {
+			delete(manager.extensions, plain.ID)
+		}
+		if hadDeezer {
+			manager.extensions[deezer.ID] = previousDeezer
+		} else {
+			delete(manager.extensions, deezer.ID)
+		}
+		manager.mu.Unlock()
+
+		extensionHealthCacheMu.Lock()
+		delete(extensionHealthCache, deezer.ID)
+		extensionHealthCacheMu.Unlock()
+	}()
+
+	extensionHealthCacheMu.Lock()
+	extensionHealthCache[deezer.ID] = cachedExtensionHealthResult{
+		result: ExtensionHealthResult{
+			ExtensionID: deezer.ID,
+			Status:      "online",
+			CheckedAt:   time.Now().UTC().Format(time.RFC3339),
+		},
+		expiresAt: time.Now().Add(time.Minute),
+	}
+	extensionHealthCacheMu.Unlock()
+
+	got := prioritizeFallbackProvidersByHealth(
+		[]string{"amazon", "plain", "deezer"},
+		manager,
+		"",
+	)
+	want := []string{"deezer", "plain"}
+	if len(got) != len(want) {
+		t.Fatalf("unexpected provider order length: got %v want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("unexpected provider order at %d: got %v want %v", i, got, want)
+		}
+	}
+}
+
 func TestNormalizeDownloadDecryptionInfoPromotesLegacyKey(t *testing.T) {
 	normalized := normalizeDownloadDecryptionInfo(nil, " 001122 ")
 	if normalized == nil {

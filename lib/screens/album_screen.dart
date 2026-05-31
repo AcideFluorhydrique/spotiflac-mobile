@@ -567,20 +567,24 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
                             children: [
                               _buildLoveAllButton(),
                               const SizedBox(width: 12),
-                              _buildShareButton(context, tracks, artistName),
-                              const SizedBox(width: 12),
-                              FilledButton.icon(
-                                onPressed: () => _downloadAll(context),
-                                icon: Icon(Icons.download, size: 18),
-                                label: Text(
-                                  context.l10n.downloadAllCount(tracks.length),
-                                ),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: Colors.black87,
-                                  minimumSize: const Size(0, 48),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24),
+                              Flexible(
+                                child: FilledButton.icon(
+                                  onPressed: () => _downloadAll(context),
+                                  icon: Icon(Icons.download, size: 18),
+                                  label: Text(
+                                    context.l10n.downloadAllCount(
+                                      tracks.length,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: Colors.black87,
+                                    minimumSize: const Size(0, 48),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -611,6 +615,23 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
         ),
         onPressed: () => Navigator.pop(context),
       ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: IconButton(
+            tooltip: context.l10n.openInOtherServices,
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.4),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.open_in_new_rounded, color: Colors.white),
+            ),
+            onPressed: () => _showShareSheet(context, tracks, artistName),
+          ),
+        ),
+      ],
     );
   }
 
@@ -849,7 +870,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
     );
   }
 
-  Widget _buildShareButton(
+  void _showShareSheet(
     BuildContext context,
     List<Track> tracks,
     String? artistName,
@@ -861,30 +882,12 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
         tracks.firstOrNull?.artistName ??
         '';
 
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white.withValues(alpha: 0.15),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
-      child: IconButton(
-        onPressed: () => CrossExtensionShareSheet.show(
-          context,
-          name: widget.albumName,
-          artists: resolvedArtists,
-          type: 'album',
-          sourceExtensionId: sourceExtensionId,
-        ),
-        icon: const Icon(Icons.open_in_new_rounded, size: 22),
-        color: Colors.white,
-        tooltip: context.l10n.openInOtherServices,
-        padding: EdgeInsets.zero,
-      ),
+    CrossExtensionShareSheet.show(
+      context,
+      name: widget.albumName,
+      artists: resolvedArtists,
+      type: 'album',
+      sourceExtensionId: sourceExtensionId,
     );
   }
 

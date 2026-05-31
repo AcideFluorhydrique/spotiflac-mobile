@@ -382,6 +382,64 @@ func shouldStopProviderFallback(availability *ExtAvailabilityResult) bool {
 	return availability != nil && availability.SkipFallback
 }
 
+func fallbackRuntimeHealthStatus(ext *loadedExtension) string {
+	if ext == nil || ext.Manifest == nil || len(ext.Manifest.ServiceHealth) == 0 {
+		return "unknown"
+	}
+
+	status := strings.ToLower(strings.TrimSpace(CheckExtensionHealthCached(ext).Status))
+	switch status {
+	case "online", "degraded", "offline":
+		return status
+	default:
+		return "unknown"
+	}
+}
+
+func prioritizeFallbackProvidersByHealth(priority []string, extManager *extensionManager, sourceProvider string) []string {
+	if len(priority) == 0 || extManager == nil {
+		return priority
+	}
+
+	online := make([]string, 0, len(priority))
+	degraded := make([]string, 0, len(priority))
+	unknown := make([]string, 0, len(priority))
+
+	for _, rawProviderID := range priority {
+		providerID := strings.TrimSpace(rawProviderID)
+		if providerID == "" {
+			continue
+		}
+		if strings.EqualFold(providerID, sourceProvider) || !isExtensionFallbackAllowed(providerID) {
+			unknown = append(unknown, providerID)
+			continue
+		}
+
+		ext, err := extManager.GetExtension(providerID)
+		if err != nil || ext == nil || !ext.Enabled || ext.Error != "" || ext.Manifest == nil || !ext.Manifest.IsDownloadProvider() {
+			unknown = append(unknown, providerID)
+			continue
+		}
+
+		switch fallbackRuntimeHealthStatus(ext) {
+		case "online":
+			online = append(online, providerID)
+		case "degraded":
+			degraded = append(degraded, providerID)
+		case "offline":
+			GoLog("[DownloadWithExtensionFallback] Skipping extension provider %s (service health offline)\n", providerID)
+		default:
+			unknown = append(unknown, providerID)
+		}
+	}
+
+	result := make([]string, 0, len(online)+len(degraded)+len(unknown))
+	result = append(result, online...)
+	result = append(result, degraded...)
+	result = append(result, unknown...)
+	return result
+}
+
 func resolveExtensionAvailabilityReason(availability *ExtAvailabilityResult, err error) string {
 	if availability != nil {
 		if reason := strings.TrimSpace(availability.Reason); reason != "" {
@@ -1800,7 +1858,9 @@ func isRetiredBuiltInDownloadProvider(providerID string) bool {
 	}
 	switch normalized {
 	case "deezer", "qobuz", "tidal":
-		return true
+		return !hasEnabledExtensionProvider(normalized, func(manifest *ExtensionManifest) bool {
+			return manifest.IsDownloadProvider()
+		})
 	default:
 		return false
 	}
@@ -1813,10 +1873,34 @@ func isRetiredBuiltInMetadataProvider(providerID string) bool {
 	}
 	switch normalized {
 	case "deezer", "spotify", "qobuz", "tidal":
-		return true
+		return !hasEnabledExtensionProvider(normalized, func(manifest *ExtensionManifest) bool {
+			return manifest.IsMetadataProvider()
+		})
 	default:
 		return false
 	}
+}
+
+func hasEnabledExtensionProvider(providerID string, matches func(*ExtensionManifest) bool) bool {
+	if providerID == "" || matches == nil {
+		return false
+	}
+
+	manager := getExtensionManager()
+	manager.mu.RLock()
+	defer manager.mu.RUnlock()
+
+	for id, ext := range manager.extensions {
+		if !strings.EqualFold(strings.TrimSpace(id), providerID) {
+			continue
+		}
+		if ext == nil || !ext.Enabled || ext.Error != "" || ext.Manifest == nil {
+			return false
+		}
+		return matches(ext.Manifest)
+	}
+
+	return false
 }
 
 func SetExtensionFallbackProviderIDs(providerIDs []string) {
@@ -2387,6 +2471,8 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 			GoLog("[DownloadWithExtensionFallback] Source extension %s not available or not a download provider\n", req.Source)
 		}
 	}
+
+	priority = prioritizeFallbackProvidersByHealth(priority, extManager, req.Source)
 
 	for _, providerID := range priority {
 		if isDownloadCancelled(req.ItemID) {

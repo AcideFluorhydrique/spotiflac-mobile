@@ -96,7 +96,7 @@ func findCollectionForExtension(
 		result.DisplayName = provider.extension.ID
 	}
 
-	searchResult, err := provider.SearchTracks(query, 10)
+	searchResult, err := searchCollectionCandidates(provider, itemType, query)
 	if err != nil {
 		result.Error = err.Error()
 		return result
@@ -130,12 +130,34 @@ func findCollectionForExtension(
 	result.Found = true
 	result.URL = url
 	if itemType == "artist" {
-		result.ItemName = best.Artists
+		result.ItemName = collectionArtistName(*best)
 	} else {
-		result.ItemName = best.AlbumName
+		result.ItemName = collectionAlbumName(*best)
 		result.ItemArtists = best.Artists
 	}
 	return result
+}
+
+func searchCollectionCandidates(provider *extensionProviderWrapper, itemType string, query string) (*ExtSearchResult, error) {
+	filter := ""
+	switch itemType {
+	case "album":
+		filter = "albums"
+	case "artist":
+		filter = "artists"
+	}
+
+	if filter != "" {
+		tracks, err := provider.CustomSearch(query, map[string]interface{}{
+			"filter": filter,
+			"limit":  10,
+		})
+		if err == nil && len(tracks) > 0 {
+			return &ExtSearchResult{Tracks: tracks, Total: len(tracks)}, nil
+		}
+	}
+
+	return provider.SearchTracks(query, 10)
 }
 
 func bestAlbumTrack(tracks []ExtTrackMetadata, albumName string, artists string) *ExtTrackMetadata {
@@ -146,10 +168,13 @@ func bestAlbumTrack(tracks []ExtTrackMetadata, albumName string, artists string)
 
 	for i := range tracks {
 		track := tracks[i]
-		album := normalizeLooseTitle(track.AlbumName)
+		album := normalizeLooseTitle(collectionAlbumName(track))
 		trackArtists := normalizeLooseArtistName(track.Artists + " " + track.AlbumArtist)
 
 		score := 0
+		if isCollectionItemType(track, "album") {
+			score += 25
+		}
 		if album == targetAlbum {
 			score += 100
 		} else if album != "" && targetAlbum != "" && (strings.Contains(album, targetAlbum) || strings.Contains(targetAlbum, album)) {
@@ -176,8 +201,11 @@ func bestArtistTrack(tracks []ExtTrackMetadata, artistName string) *ExtTrackMeta
 	bestIndex := -1
 
 	for i := range tracks {
-		artist := normalizeLooseArtistName(tracks[i].Artists)
+		artist := normalizeLooseArtistName(collectionArtistName(tracks[i]))
 		score := 0
+		if isCollectionItemType(tracks[i], "artist") {
+			score += 25
+		}
 		if artist == targetArtist {
 			score += 100
 		} else if artist != "" && targetArtist != "" && (strings.Contains(artist, targetArtist) || strings.Contains(targetArtist, artist)) {
@@ -201,28 +229,63 @@ func resolveCollectionShareURL(ext *loadedExtension, itemType string, track *Ext
 	}
 
 	if itemType == "album" {
+		if isCollectionItemType(*track, "album") {
+			if url := normalizeShareURL(track.ExternalURL); url != "" {
+				return url
+			}
+		}
 		if url := normalizeShareURL(track.AlbumURL); url != "" {
 			return url
 		}
 		if url := urlFromExternalLinks(track.ExternalLinks, "album"); url != "" {
 			return url
 		}
-		if url := templateShareURL(ext, "album", firstNonEmptyString(track.AlbumID, track.AlbumURL)); url != "" {
+		if url := templateShareURL(ext, "album", firstNonEmptyString(track.AlbumID, collectionID(*track, "album"), track.AlbumURL)); url != "" {
 			return url
 		}
 		return ""
 	}
 
+	if isCollectionItemType(*track, "artist") {
+		if url := normalizeShareURL(track.ExternalURL); url != "" {
+			return url
+		}
+	}
 	if url := normalizeShareURL(track.ArtistURL); url != "" {
 		return url
 	}
 	if url := urlFromExternalLinks(track.ExternalLinks, "artist"); url != "" {
 		return url
 	}
-	if url := templateShareURL(ext, "artist", track.ArtistID); url != "" {
+	if url := templateShareURL(ext, "artist", firstNonEmptyString(track.ArtistID, collectionID(*track, "artist"))); url != "" {
 		return url
 	}
 	return ""
+}
+
+func collectionAlbumName(track ExtTrackMetadata) string {
+	if isCollectionItemType(track, "album") {
+		return track.Name
+	}
+	return track.AlbumName
+}
+
+func collectionArtistName(track ExtTrackMetadata) string {
+	if isCollectionItemType(track, "artist") {
+		return track.Name
+	}
+	return track.Artists
+}
+
+func collectionID(track ExtTrackMetadata, itemType string) string {
+	if isCollectionItemType(track, itemType) {
+		return track.ID
+	}
+	return ""
+}
+
+func isCollectionItemType(track ExtTrackMetadata, itemType string) bool {
+	return strings.EqualFold(strings.TrimSpace(track.ItemType), itemType)
 }
 
 func normalizeShareURL(value string) string {

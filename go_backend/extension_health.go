@@ -8,12 +8,14 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
 const (
 	extensionHealthDefaultTimeout = 4 * time.Second
 	extensionHealthMaxBodyBytes   = 64 * 1024
+	extensionHealthDefaultCache   = 60 * time.Second
 )
 
 type ExtensionHealthResult struct {
@@ -38,6 +40,16 @@ type ExtensionHealthCheckResult struct {
 	CheckedAt  string `json:"checked_at"`
 }
 
+type cachedExtensionHealthResult struct {
+	result    ExtensionHealthResult
+	expiresAt time.Time
+}
+
+var (
+	extensionHealthCacheMu sync.Mutex
+	extensionHealthCache   = map[string]cachedExtensionHealthResult{}
+)
+
 func CheckExtensionHealthJSON(extensionID string) (string, error) {
 	manager := getExtensionManager()
 	ext, err := manager.GetExtension(extensionID)
@@ -51,6 +63,38 @@ func CheckExtensionHealthJSON(extensionID string) (string, error) {
 		return "", err
 	}
 	return string(bytes), nil
+}
+
+func CheckExtensionHealthCached(ext *loadedExtension) ExtensionHealthResult {
+	if ext == nil || ext.Manifest == nil || len(ext.Manifest.ServiceHealth) == 0 {
+		return CheckExtensionHealth(ext)
+	}
+
+	cacheKey := strings.TrimSpace(ext.ID)
+	if cacheKey == "" {
+		return CheckExtensionHealth(ext)
+	}
+
+	now := time.Now()
+	extensionHealthCacheMu.Lock()
+	cached, ok := extensionHealthCache[cacheKey]
+	if ok && now.Before(cached.expiresAt) {
+		extensionHealthCacheMu.Unlock()
+		return cached.result
+	}
+	extensionHealthCacheMu.Unlock()
+
+	result := CheckExtensionHealth(ext)
+	ttl := extensionHealthCacheTTL(ext.Manifest.ServiceHealth)
+
+	extensionHealthCacheMu.Lock()
+	extensionHealthCache[cacheKey] = cachedExtensionHealthResult{
+		result:    result,
+		expiresAt: now.Add(ttl),
+	}
+	extensionHealthCacheMu.Unlock()
+
+	return result
 }
 
 func CheckExtensionHealth(ext *loadedExtension) ExtensionHealthResult {
@@ -96,6 +140,20 @@ func CheckExtensionHealth(ext *loadedExtension) ExtensionHealthResult {
 	}
 
 	return result
+}
+
+func extensionHealthCacheTTL(checks []ExtensionHealthCheck) time.Duration {
+	ttl := extensionHealthDefaultCache
+	for _, check := range checks {
+		if check.CacheTTLSeconds <= 0 {
+			continue
+		}
+		checkTTL := time.Duration(check.CacheTTLSeconds) * time.Second
+		if checkTTL < ttl {
+			ttl = checkTTL
+		}
+	}
+	return ttl
 }
 
 func runExtensionHealthCheck(manifest *ExtensionManifest, check ExtensionHealthCheck) ExtensionHealthCheckResult {

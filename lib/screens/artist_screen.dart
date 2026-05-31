@@ -1334,6 +1334,33 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
         ),
         onPressed: () => Navigator.pop(context),
       ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: IconButton(
+            tooltip: context.l10n.openInOtherServices,
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.4),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.open_in_new_rounded, color: Colors.white),
+            ),
+            onPressed: () => _showShareSheet(context),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showShareSheet(BuildContext context) {
+    CrossExtensionShareSheet.show(
+      context,
+      name: widget.artistName,
+      artists: '',
+      type: 'artist',
+      sourceExtensionId: _directMetadataProviderId() ?? '',
     );
   }
 
@@ -1422,31 +1449,10 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
                     ),
                   );
                 }),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        onPressed: () => CrossExtensionShareSheet.show(
-                          context,
-                          name: widget.artistName,
-                          artists: '',
-                          type: 'artist',
-                          sourceExtensionId: _directMetadataProviderId() ?? '',
-                        ),
-                        icon: const Icon(Icons.open_in_new_rounded, size: 24),
-                        color: Colors.black87,
-                        tooltip: context.l10n.openInOtherServices,
-                      ),
-                    ),
-                  ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 
