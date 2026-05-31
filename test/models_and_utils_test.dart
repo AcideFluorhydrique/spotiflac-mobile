@@ -142,7 +142,7 @@ void main() {
       );
       expect(
         base.copyWith(errorType: DownloadErrorType.rateLimit).errorMessage,
-        'Rate limit reached, try again later',
+        'Service rate limit reached. Wait before retrying.',
       );
       expect(
         base.copyWith(errorType: DownloadErrorType.network).errorMessage,

@@ -4614,5 +4614,13 @@
   "downloadFallbackExtensionsSubtitle": "Choose which extensions can be used as fallback",
   "@downloadFallbackExtensionsSubtitle": {
     "description": "Subtitle for fallback extensions item"
+  },
+  "queueRateLimitTitle": "Layanan sedang membatasi permintaan",
+  "@queueRateLimitTitle": {
+    "description": "Title shown on a failed queue item when the download service rate limits requests"
+  },
+  "queueRateLimitMessage": "Lagu ini mungkin masih tersedia. Tunggu beberapa menit, kurangi unduhan paralel, lalu coba lagi.",
+  "@queueRateLimitMessage": {
+    "description": "Explanation shown on a failed queue item when the download service rate limits requests"
   }
 }

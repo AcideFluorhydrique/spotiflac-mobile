@@ -22,6 +22,57 @@ String _sidecarLrcPath(String path) {
   return '$path.lrc';
 }
 
+/// Writes a ".lrc" sidecar next to a re-enriched audio file when the Go backend
+/// result requests it (`write_external_lrc`), honoring the user's lyrics mode.
+///
+/// This handles the filesystem case only. SAF (`content://`) files are written
+/// centrally by the Kotlin `reEnrichFile` handler, which still holds the
+/// original document URI, so callers should skip those here (they are detected
+/// and ignored). Best-effort: returns true only when a sidecar was actually
+/// written, and never throws.
+Future<bool> writeReEnrichSidecarLrc({
+  required String audioFilePath,
+  required Map<String, dynamic> reEnrichResult,
+}) async {
+  if (reEnrichResult['write_external_lrc'] != true) return false;
+
+  // SAF documents are handled natively in Kotlin; nothing to do from Dart.
+  if (isContentUri(audioFilePath)) return false;
+
+  final lrc = (reEnrichResult['lyrics'] as String?)?.trim() ?? '';
+  if (lrc.isEmpty) return false;
+
+  try {
+    final lrcPath = _sidecarLrcPath(audioFilePath);
+    await File(lrcPath).writeAsString(lrc);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Writes a SAF ".lrc" sidecar after a FFmpeg re-enrich write-back succeeds.
+///
+/// Native FLAC re-enrich handles SAF sidecars in Kotlin after the direct
+/// write-back. This helper is for the FFmpeg path, where Dart owns the final
+/// `writeTempToSaf` success/failure decision.
+Future<bool> writeReEnrichSafSidecarLrc({
+  required String safUri,
+  required Map<String, dynamic> reEnrichResult,
+}) async {
+  if (reEnrichResult['write_external_lrc'] != true) return false;
+  if (!isContentUri(safUri)) return false;
+
+  final lrc = (reEnrichResult['lyrics'] as String?)?.trim() ?? '';
+  if (lrc.isEmpty) return false;
+
+  try {
+    return await PlatformBridge.writeSafSidecarLrc(safUri, lrc);
+  } catch (_) {
+    return false;
+  }
+}
+
 Future<void> ensureLyricsMetadataForConversion({
   required Map<String, String> metadata,
   required String sourcePath,

@@ -817,6 +817,15 @@ class PlatformBridge {
     return map['success'] == true;
   }
 
+  static Future<bool> writeSafSidecarLrc(String safUri, String lyrics) async {
+    final result = await _channel.invokeMethod('writeSafSidecarLrc', {
+      'saf_uri': safUri,
+      'lyrics': lyrics,
+    });
+    final map = _decodeRequiredMapResult(result, 'writeSafSidecarLrc');
+    return map['success'] == true;
+  }
+
   static Future<void> startDownloadService({
     String trackName = '',
     String artistName = '',

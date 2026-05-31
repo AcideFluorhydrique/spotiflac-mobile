@@ -863,6 +863,7 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
         await _safeDeleteFile(tempPath!);
         return false;
       }
+      await writeReEnrichSafSidecarLrc(safUri: safUri, reEnrichResult: result);
     }
 
     if (_hasValue(downloadedCoverPath)) {
@@ -873,6 +874,15 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
     }
     if (_hasValue(tempPath)) {
       await _safeDeleteFile(tempPath!);
+    }
+
+    if (ffmpegResult != null) {
+      // Filesystem .lrc sidecar. SAF sidecar is written only after
+      // writeTempToSaf succeeds.
+      await writeReEnrichSidecarLrc(
+        audioFilePath: item.filePath,
+        reEnrichResult: result,
+      );
     }
 
     return ffmpegResult != null;
@@ -890,6 +900,7 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
       'cover_url': '',
       'max_quality': true,
       'embed_lyrics': settings.embedLyrics,
+      'lyrics_mode': settings.lyricsMode,
       'artist_tag_mode': artistTagMode,
       'spotify_id': '',
       'track_name': item.trackName,
@@ -912,6 +923,11 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
     final result = await PlatformBridge.reEnrichFile(request);
     final method = result['method'] as String?;
     if (method == 'native') {
+      // Filesystem .lrc sidecar (SAF sidecar handled natively in Kotlin).
+      await writeReEnrichSidecarLrc(
+        audioFilePath: item.filePath,
+        reEnrichResult: result,
+      );
       return true;
     }
     if (method == 'ffmpeg') {

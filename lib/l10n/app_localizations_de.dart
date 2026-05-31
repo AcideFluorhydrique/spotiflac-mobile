@@ -3697,6 +3697,13 @@ class AppLocalizationsDe extends AppLocalizations {
   String get queueDownloadCompleted => 'Download completed';
 
   @override
+  String get queueRateLimitTitle => 'Service rate limited';
+
+  @override
+  String get queueRateLimitMessage =>
+      'This track may still be available. Wait a few minutes, reduce parallel downloads, then retry.';
+
+  @override
   String appearanceSelectAccentColor(String hex) {
     return 'Select accent color $hex';
   }

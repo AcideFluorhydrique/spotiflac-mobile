@@ -4808,6 +4808,14 @@
   "@queueDownloadCompleted": {
     "description": "Accessibility label for completed download state in queue"
   },
+  "queueRateLimitTitle": "Service rate limited",
+  "@queueRateLimitTitle": {
+    "description": "Title shown on a failed queue item when the download service rate limits requests"
+  },
+  "queueRateLimitMessage": "This track may still be available. Wait a few minutes, reduce parallel downloads, then retry.",
+  "@queueRateLimitMessage": {
+    "description": "Explanation shown on a failed queue item when the download service rate limits requests"
+  },
   "appearanceSelectAccentColor": "Select accent color {hex}",
   "@appearanceSelectAccentColor": {
     "description": "Accessibility label for picking an accent color",

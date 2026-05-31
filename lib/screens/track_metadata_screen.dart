@@ -2933,6 +2933,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
         'cover_url': _coverUrl ?? '',
         'max_quality': true,
         'embed_lyrics': settings.embedLyrics,
+        'lyrics_mode': settings.lyricsMode,
         'artist_tag_mode': artistTagMode,
         'spotify_id': _spotifyId ?? '',
         'track_name': trackName,
@@ -2979,7 +2980,13 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
       }
 
       if (method == 'native') {
-        // FLAC - handled natively by Go (SAF write-back handled in Kotlin)
+        // FLAC - handled natively by Go (SAF write-back handled in Kotlin).
+        // External .lrc sidecar for filesystem files is written here; SAF
+        // sidecars are created natively in the Kotlin reEnrichFile handler.
+        await writeReEnrichSidecarLrc(
+          audioFilePath: cleanFilePath,
+          reEnrichResult: result,
+        );
         await _refreshEmbeddedCoverPreview(force: true);
         _markMetadataChanged();
         await _syncDownloadHistoryMetadata();
@@ -3073,6 +3080,10 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
             }
             return;
           }
+          await writeReEnrichSafSidecarLrc(
+            safUri: safUri,
+            reEnrichResult: result,
+          );
         }
 
         if (tempPath != null && tempPath.isNotEmpty) {
@@ -3082,6 +3093,12 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
         }
 
         if (ffmpegResult != null) {
+          // Filesystem .lrc sidecar. SAF sidecar is written only after
+          // writeTempToSaf succeeds.
+          await writeReEnrichSidecarLrc(
+            audioFilePath: cleanFilePath,
+            reEnrichResult: result,
+          );
           await _refreshEmbeddedCoverPreview(force: true);
           _markMetadataChanged();
           await _syncDownloadHistoryMetadata();

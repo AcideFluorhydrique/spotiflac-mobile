@@ -11,6 +11,26 @@ import (
 	"time"
 )
 
+func TestDownloadErrorClassificationPrioritizesRateLimit(t *testing.T) {
+	got := classifyDownloadErrorType("All providers failed. Last error: HTTP status 429: too many requests")
+	if got != "rate_limit" {
+		t.Fatalf("expected rate_limit, got %q", got)
+	}
+
+	responseJSON, err := errorResponse("All services failed. Last error: rate limit exceeded")
+	if err != nil {
+		t.Fatalf("errorResponse returned error: %v", err)
+	}
+
+	var response DownloadResponse
+	if err := json.Unmarshal([]byte(responseJSON), &response); err != nil {
+		t.Fatalf("invalid response JSON: %v", err)
+	}
+	if response.ErrorType != "rate_limit" {
+		t.Fatalf("expected rate_limit response, got %q", response.ErrorType)
+	}
+}
+
 func TestExportsJSONWrappersAndExtensionManagerSurface(t *testing.T) {
 	dir := t.TempDir()
 	dataDir := filepath.Join(dir, "data")

@@ -42,9 +42,12 @@ func (t *utlsTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
+	opts := GetNetworkCompatibilityOptions()
 	tlsConn := utls.UClient(conn, &utls.Config{
-		ServerName: host,
-		NextProtos: []string{"h2", "http/1.1"},
+		RootCAs:            supplementalRootCAs(),
+		InsecureSkipVerify: opts.InsecureTLS,
+		ServerName:         host,
+		NextProtos:         []string{"h2", "http/1.1"},
 	}, utls.HelloChrome_Auto)
 
 	if err := tlsConn.Handshake(); err != nil {

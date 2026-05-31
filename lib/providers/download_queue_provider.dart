@@ -6551,6 +6551,32 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
+  DownloadErrorType _downloadErrorTypeFromMessage(String errorMsg) {
+    final lowerMsg = errorMsg.toLowerCase();
+    if (errorMsg.contains('429') ||
+        lowerMsg.contains('rate limit') ||
+        lowerMsg.contains('too many requests')) {
+      return DownloadErrorType.rateLimit;
+    }
+    if (lowerMsg.contains('not found') ||
+        lowerMsg.contains('not available') ||
+        lowerMsg.contains('no results')) {
+      return DownloadErrorType.notFound;
+    }
+    if (lowerMsg.contains('permission') ||
+        lowerMsg.contains('operation not permitted') ||
+        lowerMsg.contains('access denied')) {
+      return DownloadErrorType.permission;
+    }
+    if (lowerMsg.contains('network') ||
+        lowerMsg.contains('connection') ||
+        lowerMsg.contains('timeout') ||
+        lowerMsg.contains('dial')) {
+      return DownloadErrorType.network;
+    }
+    return DownloadErrorType.unknown;
+  }
+
   Future<void> _processQueue() async {
     if (state.isProcessing) return;
 
@@ -8723,7 +8749,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             errorType = DownloadErrorType.permission;
             break;
           default:
-            errorType = DownloadErrorType.unknown;
+            errorType = _downloadErrorTypeFromMessage(errorMsg);
         }
 
         _log.e('Download failed: $errorMsg (type: $errorTypeStr)');
@@ -8777,6 +8803,8 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           errorMsg.contains('track not found on Deezer')) {
         errorMsg = 'Track not found on Deezer (Metadata Unavailable)';
         errorType = DownloadErrorType.notFound;
+      } else {
+        errorType = _downloadErrorTypeFromMessage(errorMsg);
       }
 
       updateItemStatus(

@@ -89,7 +89,7 @@ class DownloadItem {
       case DownloadErrorType.notFound:
         return 'Song not found on any service';
       case DownloadErrorType.rateLimit:
-        return 'Rate limit reached, try again later';
+        return 'Service rate limit reached. Wait before retrying.';
       case DownloadErrorType.network:
         return 'Connection failed, check your internet';
       case DownloadErrorType.permission:

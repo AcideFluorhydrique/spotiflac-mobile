@@ -391,10 +391,14 @@ func resolveExtensionAvailabilityReason(availability *ExtAvailabilityResult, err
 
 func buildExtensionFallbackStoppedResponse(providerID string, availability *ExtAvailabilityResult, err error) *DownloadResponse {
 	reason := resolveExtensionAvailabilityReason(availability, err)
+	errorType := classifyDownloadErrorType(reason)
+	if errorType == "unknown" {
+		errorType = "extension_error"
+	}
 	return &DownloadResponse{
 		Success:   false,
 		Error:     fmt.Sprintf("Fallback stopped by %s: %s", providerID, reason),
-		ErrorType: "extension_error",
+		ErrorType: errorType,
 		Service:   providerID,
 	}
 }
@@ -2519,10 +2523,14 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 	}
 
 	if lastErr != nil {
+		errorType := classifyDownloadErrorType(lastErr.Error())
+		if errorType == "unknown" {
+			errorType = "not_found"
+		}
 		return &DownloadResponse{
 			Success:   false,
 			Error:     "All providers failed. Last error: " + lastErr.Error(),
-			ErrorType: "not_found",
+			ErrorType: errorType,
 		}, nil
 	}
 
@@ -2557,9 +2565,10 @@ func buildOutputPath(req DownloadRequest) string {
 	}
 
 	filename := buildFilenameFromTemplate(req.FilenameFormat, metadata)
-	if filename == "" {
-		filename = sanitizeFilename(fmt.Sprintf("%s - %s", req.ArtistName, req.TrackName))
+	if strings.TrimSpace(filename) == "" {
+		filename = fmt.Sprintf("%s - %s", req.ArtistName, req.TrackName)
 	}
+	filename = sanitizeFilename(filename)
 
 	ext := strings.TrimSpace(req.OutputExt)
 	if ext == "" {
@@ -2615,9 +2624,10 @@ func buildOutputPathForExtension(req DownloadRequest, ext *loadedExtension) stri
 	}
 
 	filename := buildFilenameFromTemplate(req.FilenameFormat, metadata)
-	if filename == "" {
-		filename = sanitizeFilename(fmt.Sprintf("%s - %s", req.ArtistName, req.TrackName))
+	if strings.TrimSpace(filename) == "" {
+		filename = fmt.Sprintf("%s - %s", req.ArtistName, req.TrackName)
 	}
+	filename = sanitizeFilename(filename)
 
 	outputExt := strings.TrimSpace(req.OutputExt)
 	if outputExt == "" {

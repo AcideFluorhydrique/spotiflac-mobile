@@ -4388,6 +4388,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
         await _safeDeleteTempFile(tempPath!);
         return false;
       }
+      await writeReEnrichSafSidecarLrc(safUri: safUri, reEnrichResult: result);
     }
 
     if (_hasTextValue(downloadedCoverPath)) {
@@ -4398,6 +4399,15 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     }
     if (_hasTextValue(tempPath)) {
       await _safeDeleteTempFile(tempPath!);
+    }
+
+    if (ffmpegResult != null) {
+      // Filesystem .lrc sidecar. SAF sidecar is written only after
+      // writeTempToSaf succeeds.
+      await writeReEnrichSidecarLrc(
+        audioFilePath: item.filePath,
+        reEnrichResult: result,
+      );
     }
 
     return ffmpegResult != null;
@@ -4415,6 +4425,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
       'cover_url': '',
       'max_quality': true,
       'embed_lyrics': settings.embedLyrics,
+      'lyrics_mode': settings.lyricsMode,
       'artist_tag_mode': artistTagMode,
       'spotify_id': '',
       'track_name': item.trackName,
@@ -4437,6 +4448,11 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     final result = await PlatformBridge.reEnrichFile(request);
     final method = result['method'] as String?;
     if (method == 'native') {
+      // Filesystem .lrc sidecar (SAF sidecar handled natively in Kotlin).
+      await writeReEnrichSidecarLrc(
+        audioFilePath: item.filePath,
+        reEnrichResult: result,
+      );
       return true;
     }
     if (method == 'ffmpeg') {
@@ -5664,12 +5680,10 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                         ],
                         if (item.status == DownloadStatus.failed) ...[
                           const SizedBox(height: 4),
-                          Text(
-                            item.errorMessage,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(color: colorScheme.error),
+                          _buildDownloadFailureMessage(
+                            context,
+                            item,
+                            colorScheme,
                           ),
                         ],
                       ],
@@ -5682,6 +5696,70 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDownloadFailureMessage(
+    BuildContext context,
+    DownloadItem item,
+    ColorScheme colorScheme,
+  ) {
+    if (item.errorType != DownloadErrorType.rateLimit) {
+      return Text(
+        item.errorMessage,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(
+          context,
+        ).textTheme.labelSmall?.copyWith(color: colorScheme.error),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: colorScheme.tertiaryContainer.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colorScheme.tertiary.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.hourglass_top_rounded,
+            size: 16,
+            color: colorScheme.onTertiaryContainer,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  context.l10n.queueRateLimitTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onTertiaryContainer,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  context.l10n.queueRateLimitMessage,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onTertiaryContainer,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

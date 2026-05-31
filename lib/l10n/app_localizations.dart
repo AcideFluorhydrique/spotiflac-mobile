@@ -6209,6 +6209,18 @@ abstract class AppLocalizations {
   /// **'Download completed'**
   String get queueDownloadCompleted;
 
+  /// Title shown on a failed queue item when the download service rate limits requests
+  ///
+  /// In en, this message translates to:
+  /// **'Service rate limited'**
+  String get queueRateLimitTitle;
+
+  /// Explanation shown on a failed queue item when the download service rate limits requests
+  ///
+  /// In en, this message translates to:
+  /// **'This track may still be available. Wait a few minutes, reduce parallel downloads, then retry.'**
+  String get queueRateLimitMessage;
+
   /// Accessibility label for picking an accent color
   ///
   /// In en, this message translates to:

@@ -379,6 +379,7 @@ type reEnrichRequest struct {
 	CoverURL      string   `json:"cover_url"`
 	MaxQuality    bool     `json:"max_quality"`
 	EmbedLyrics   bool     `json:"embed_lyrics"`
+	LyricsMode    string   `json:"lyrics_mode,omitempty"`
 	ArtistTagMode string   `json:"artist_tag_mode,omitempty"`
 	SpotifyID     string   `json:"spotify_id"`
 	TrackName     string   `json:"track_name"`
@@ -412,6 +413,21 @@ func (r *reEnrichRequest) shouldUpdateField(field string) bool {
 		}
 	}
 	return false
+}
+
+// lyricsEmbedEnabled reports whether lyrics should be written into the audio
+// file's tags. It mirrors the download path semantics: 'embed' and 'both' embed,
+// 'external' does not. An empty mode keeps the legacy behavior (embed) so older
+// callers that do not send lyrics_mode are unaffected.
+func (r *reEnrichRequest) lyricsEmbedEnabled() bool {
+	return strings.ToLower(strings.TrimSpace(r.LyricsMode)) != "external"
+}
+
+// lyricsSidecarEnabled reports whether a .lrc sidecar file should be written
+// next to the audio file. Only 'external' and 'both' request a sidecar.
+func (r *reEnrichRequest) lyricsSidecarEnabled() bool {
+	mode := strings.ToLower(strings.TrimSpace(r.LyricsMode))
+	return mode == "external" || mode == "both"
 }
 
 func applyReEnrichTrackMetadata(req *reEnrichRequest, track ExtTrackMetadata) {
@@ -578,7 +594,7 @@ func buildReEnrichFFmpegMetadata(req *reEnrichRequest, lyricsLRC string) map[str
 		}
 	}
 	if req.shouldUpdateField("lyrics") {
-		if lyricsLRC != "" {
+		if lyricsLRC != "" && req.lyricsEmbedEnabled() {
 			metadata["LYRICS"] = lyricsLRC
 			metadata["UNSYNCEDLYRICS"] = lyricsLRC
 		}
@@ -2358,37 +2374,7 @@ func GetTidalURLFromDeezerTrack(deezerTrackID string) (string, error) {
 }
 
 func errorResponse(msg string) (string, error) {
-	errorType := "unknown"
-	lowerMsg := strings.ToLower(msg)
-
-	if strings.Contains(lowerMsg, "isp blocking") ||
-		strings.Contains(lowerMsg, "try using vpn") ||
-		strings.Contains(lowerMsg, "change dns") {
-		errorType = "isp_blocked"
-	} else if strings.Contains(lowerMsg, "cancel") {
-		errorType = "cancelled"
-	} else if strings.Contains(lowerMsg, "permission") ||
-		strings.Contains(lowerMsg, "operation not permitted") ||
-		strings.Contains(lowerMsg, "access denied") ||
-		strings.Contains(lowerMsg, "failed to create file") ||
-		strings.Contains(lowerMsg, "failed to create directory") {
-		errorType = "permission"
-	} else if strings.Contains(lowerMsg, "not found") ||
-		strings.Contains(lowerMsg, "not available") ||
-		strings.Contains(lowerMsg, "no results") ||
-		strings.Contains(lowerMsg, "track not found") ||
-		strings.Contains(lowerMsg, "all services failed") {
-		errorType = "not_found"
-	} else if strings.Contains(lowerMsg, "rate limit") ||
-		strings.Contains(lowerMsg, "429") ||
-		strings.Contains(lowerMsg, "too many requests") {
-		errorType = "rate_limit"
-	} else if strings.Contains(lowerMsg, "network") ||
-		strings.Contains(lowerMsg, "connection") ||
-		strings.Contains(lowerMsg, "timeout") ||
-		strings.Contains(lowerMsg, "dial") {
-		errorType = "network"
-	}
+	errorType := classifyDownloadErrorType(msg)
 
 	resp := DownloadResponse{
 		Success:   false,
@@ -2397,6 +2383,41 @@ func errorResponse(msg string) (string, error) {
 	}
 	jsonBytes, _ := json.Marshal(resp)
 	return string(jsonBytes), nil
+}
+
+func classifyDownloadErrorType(msg string) string {
+	lowerMsg := strings.ToLower(msg)
+
+	if strings.Contains(lowerMsg, "isp blocking") ||
+		strings.Contains(lowerMsg, "try using vpn") ||
+		strings.Contains(lowerMsg, "change dns") {
+		return "isp_blocked"
+	} else if strings.Contains(lowerMsg, "cancel") {
+		return "cancelled"
+	} else if strings.Contains(lowerMsg, "rate limit") ||
+		strings.Contains(lowerMsg, "429") ||
+		strings.Contains(lowerMsg, "too many requests") {
+		return "rate_limit"
+	} else if strings.Contains(lowerMsg, "permission") ||
+		strings.Contains(lowerMsg, "operation not permitted") ||
+		strings.Contains(lowerMsg, "access denied") ||
+		strings.Contains(lowerMsg, "failed to create file") ||
+		strings.Contains(lowerMsg, "failed to create directory") {
+		return "permission"
+	} else if strings.Contains(lowerMsg, "not found") ||
+		strings.Contains(lowerMsg, "not available") ||
+		strings.Contains(lowerMsg, "no results") ||
+		strings.Contains(lowerMsg, "track not found") ||
+		strings.Contains(lowerMsg, "all services failed") {
+		return "not_found"
+	} else if strings.Contains(lowerMsg, "network") ||
+		strings.Contains(lowerMsg, "connection") ||
+		strings.Contains(lowerMsg, "timeout") ||
+		strings.Contains(lowerMsg, "dial") {
+		return "network"
+	}
+
+	return "unknown"
 }
 
 func DownloadCoverToFile(coverURL string, outputPath string, maxQuality bool) error {
@@ -2745,7 +2766,9 @@ func ReEnrichFile(requestJSON string) (string, error) {
 			metadata.ISRC = req.ISRC
 		}
 		if req.shouldUpdateField("lyrics") {
-			metadata.Lyrics = lyricsLRC
+			if req.lyricsEmbedEnabled() {
+				metadata.Lyrics = lyricsLRC
+			}
 		}
 		if req.shouldUpdateField("extra") {
 			metadata.Genre = req.Genre
@@ -2780,6 +2803,11 @@ func ReEnrichFile(requestJSON string) (string, error) {
 			"method":            "native",
 			"success":           true,
 			"enriched_metadata": enrichedMeta,
+			"lyrics":            lyricsLRC,
+			"write_external_lrc": req.EmbedLyrics &&
+				req.shouldUpdateField("lyrics") &&
+				req.lyricsSidecarEnabled() &&
+				strings.TrimSpace(lyricsLRC) != "",
 		}
 		jsonBytes, _ := json.Marshal(result)
 		return string(jsonBytes), nil
@@ -2795,6 +2823,10 @@ func ReEnrichFile(requestJSON string) (string, error) {
 		"lyrics":            lyricsLRC,
 		"enriched_metadata": enrichedMeta,
 		"metadata":          ffmpegMetadata,
+		"write_external_lrc": req.EmbedLyrics &&
+			req.shouldUpdateField("lyrics") &&
+			req.lyricsSidecarEnabled() &&
+			strings.TrimSpace(lyricsLRC) != "",
 	}
 
 	jsonBytes, _ := json.Marshal(result)

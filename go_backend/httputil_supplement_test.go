@@ -1,6 +1,8 @@
 package gobackend
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"io"
 	"net/http"
@@ -25,11 +27,34 @@ func TestHTTPUtilityHelpers(t *testing.T) {
 	if GetSharedClient() == nil || GetDownloadClient() == nil {
 		t.Fatal("expected shared clients")
 	}
+	if sharedTransport.TLSClientConfig == nil || sharedTransport.TLSClientConfig.RootCAs == nil {
+		t.Fatal("expected supplemental TLS root pool")
+	}
+	block, _ := pem.Decode([]byte(isrgRootX2PEM))
+	if block == nil {
+		t.Fatal("failed to decode ISRG Root X2")
+	}
+	rootX2, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("failed to parse ISRG Root X2: %v", err)
+	}
+	if _, err := rootX2.Verify(x509.VerifyOptions{
+		Roots:     supplementalRootCAs(),
+		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+	}); err != nil {
+		t.Fatalf("ISRG Root X2 should verify with supplemental roots: %v", err)
+	}
 	SetNetworkCompatibilityOptions(true, true)
 	if opts := GetNetworkCompatibilityOptions(); !opts.AllowHTTP || !opts.InsecureTLS {
 		t.Fatalf("network opts = %#v", opts)
 	}
+	if !sharedTransport.TLSClientConfig.InsecureSkipVerify {
+		t.Fatal("expected insecure TLS config to be applied")
+	}
 	SetNetworkCompatibilityOptions(false, false)
+	if sharedTransport.TLSClientConfig == nil || sharedTransport.TLSClientConfig.InsecureSkipVerify {
+		t.Fatal("expected secure TLS config to be restored")
+	}
 	if !canFallbackToHTTP(&http.Request{Method: http.MethodGet}) {
 		t.Fatal("GET should fallback")
 	}

@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -283,6 +284,45 @@ func TestBuildOutputPathForExtensionUsesTempDirForFDOutput(t *testing.T) {
 	}
 	if !isPathInAllowedDirs(resolved) {
 		t.Fatalf("expected resolved output path %q to be allowed", resolved)
+	}
+}
+
+func TestBuildOutputPathSanitizesTemplateFilename(t *testing.T) {
+	SetAllowedDownloadDirs(nil)
+
+	outputDir := t.TempDir()
+	outputPath := buildOutputPath(DownloadRequest{
+		TrackName:      `Gehra Hua (From "Dhurandhar")`,
+		ArtistName:     "Artist",
+		OutputDir:      outputDir,
+		OutputExt:      ".flac",
+		FilenameFormat: "{artist} - {title}",
+	})
+
+	base := filepath.Base(outputPath)
+	if strings.ContainsAny(base, `<>:"/\|?*`) {
+		t.Fatalf("output filename still contains illegal characters: %q", base)
+	}
+	if strings.Contains(base, `"`) {
+		t.Fatalf("output filename still contains straight double quote: %q", base)
+	}
+}
+
+func TestBuildOutputPathForExtensionSanitizesTemplateFilename(t *testing.T) {
+	SetAllowedDownloadDirs(nil)
+
+	ext := &loadedExtension{DataDir: t.TempDir()}
+	resolved := buildOutputPathForExtension(DownloadRequest{
+		TrackName:      `Gehra Hua (From "Dhurandhar")`,
+		ArtistName:     "Artist",
+		OutputFD:       123,
+		OutputExt:      ".flac",
+		FilenameFormat: "{artist} - {title}",
+	}, ext)
+
+	base := filepath.Base(resolved)
+	if strings.ContainsAny(base, `<>:"/\|?*`) {
+		t.Fatalf("extension output filename still contains illegal characters: %q", base)
 	}
 }
 

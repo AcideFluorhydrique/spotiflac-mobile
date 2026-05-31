@@ -77,6 +77,7 @@ var sharedTransport = &http.Transport{
 	WriteBufferSize:       64 * 1024,
 	ReadBufferSize:        64 * 1024,
 	DisableCompression:    true,
+	TLSClientConfig:       newTLSCompatibilityConfig(false),
 }
 
 var extensionAPITransport = &http.Transport{
@@ -95,6 +96,7 @@ var extensionAPITransport = &http.Transport{
 	WriteBufferSize:       64 * 1024,
 	ReadBufferSize:        64 * 1024,
 	DisableCompression:    false,
+	TLSClientConfig:       newTLSCompatibilityConfig(false),
 }
 
 var metadataTransport = &http.Transport{
@@ -113,6 +115,7 @@ var metadataTransport = &http.Transport{
 	WriteBufferSize:       32 * 1024,
 	ReadBufferSize:        32 * 1024,
 	DisableCompression:    true,
+	TLSClientConfig:       newTLSCompatibilityConfig(false),
 }
 
 var sharedClient = &http.Client{
@@ -176,17 +179,7 @@ func GetNetworkCompatibilityOptions() NetworkCompatibilityOptions {
 }
 
 func applyTLSCompatibility(transport *http.Transport, insecureTLS bool) {
-	if insecureTLS {
-		cfg := &tls.Config{InsecureSkipVerify: true}
-		if transport.TLSClientConfig != nil {
-			cfg = transport.TLSClientConfig.Clone()
-			cfg.InsecureSkipVerify = true
-		}
-		transport.TLSClientConfig = cfg
-		return
-	}
-
-	transport.TLSClientConfig = nil
+	transport.TLSClientConfig = newTLSCompatibilityConfig(insecureTLS)
 }
 
 type compatibilityTransport struct {

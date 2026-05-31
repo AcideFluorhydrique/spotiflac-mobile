@@ -1038,6 +1038,48 @@ class MainActivity: FlutterFragmentActivity() {
     }
 
     /**
+     * Write a ".lrc" sidecar next to a SAF audio document. The sidecar reuses
+     * the audio file's base name (e.g. "Song.flac" -> "Song.lrc") and is created
+     * in the same parent directory. Used by re-enrich when the user's lyrics
+     * mode requests an external/both sidecar. Best-effort: failures are logged
+     * and swallowed so they never abort the metadata enrichment itself.
+     */
+    private fun writeSafSidecarLrc(audioUri: Uri, lrcContent: String): Boolean {
+        if (lrcContent.isBlank()) return false
+        try {
+            val parent = safParentDir(audioUri) ?: run {
+                android.util.Log.w("SpotiFLAC", "LRC sidecar: no SAF parent dir")
+                return false
+            }
+            val audioName = try {
+                DocumentFile.fromSingleUri(this, audioUri)?.name
+            } catch (_: Exception) {
+                null
+            } ?: return false
+            val baseName = audioName.substringBeforeLast('.', audioName)
+            val lrcName = "$baseName.lrc"
+
+            val target = createOrReuseDocumentFile(
+                parent,
+                "application/octet-stream",
+                lrcName
+            ) ?: run {
+                android.util.Log.w("SpotiFLAC", "LRC sidecar: failed to create $lrcName")
+                return false
+            }
+
+            contentResolver.openOutputStream(target.uri, "wt")?.use { output ->
+                output.write(lrcContent.toByteArray(Charsets.UTF_8))
+            } ?: return false
+            android.util.Log.d("SpotiFLAC", "LRC sidecar written: $lrcName")
+            return true
+        } catch (e: Exception) {
+            android.util.Log.w("SpotiFLAC", "LRC sidecar write failed: ${e.message}")
+            return false
+        }
+    }
+
+    /**
      * Extract the audio filename referenced by a CUE sheet file.
      * Reads the FILE "name" TYPE line from the .cue text.
      * Returns just the filename (no path), or null if not found.
@@ -2604,6 +2646,23 @@ class MainActivity: FlutterFragmentActivity() {
                             }
                             result.success(response)
                         }
+                        "writeSafSidecarLrc" -> {
+                            val safUri = call.argument<String>("saf_uri") ?: ""
+                            val lyrics = call.argument<String>("lyrics") ?: ""
+                            val response = withContext(Dispatchers.IO) {
+                                try {
+                                    val uri = Uri.parse(safUri)
+                                    if (writeSafSidecarLrc(uri, lyrics)) {
+                                        """{"success":true}"""
+                                    } else {
+                                        """{"success":false,"error":"Failed to write LRC sidecar"}"""
+                                    }
+                                } catch (e: Exception) {
+                                    """{"success":false,"error":"${e.message?.replace("\"", "'")}"}"""
+                                }
+                            }
+                            result.success(response)
+                        }
                         "downloadCoverToFile" -> {
                             val coverUrl = call.argument<String>("cover_url") ?: ""
                             val outputPath = call.argument<String>("output_path") ?: ""
@@ -2760,6 +2819,9 @@ class MainActivity: FlutterFragmentActivity() {
                                             // FLAC: Go wrote directly to temp, copy back now
                                             if (!writeUriFromPath(uri, tempPath)) {
                                                 return@withContext """{"error":"Failed to write enriched metadata back to SAF file"}"""
+                                            }
+                                            if (obj.optBoolean("write_external_lrc", false)) {
+                                                writeSafSidecarLrc(uri, obj.optString("lyrics", ""))
                                             }
                                             raw
                                         } catch (e: Exception) {

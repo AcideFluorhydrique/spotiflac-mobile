@@ -3654,6 +3654,13 @@ class AppLocalizationsId extends AppLocalizations {
   String get queueDownloadCompleted => 'Download completed';
 
   @override
+  String get queueRateLimitTitle => 'Layanan sedang membatasi permintaan';
+
+  @override
+  String get queueRateLimitMessage =>
+      'Lagu ini mungkin masih tersedia. Tunggu beberapa menit, kurangi unduhan paralel, lalu coba lagi.';
+
+  @override
   String appearanceSelectAccentColor(String hex) {
     return 'Select accent color $hex';
   }
