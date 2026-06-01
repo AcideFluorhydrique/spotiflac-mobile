@@ -746,6 +746,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get errorNoTracksFound => 'Tidak ada lagu ditemukan';
 
   @override
+  String get searchEmptyResultSubtitle => 'Coba kata kunci lain';
+
+  @override
   String get errorUrlNotRecognized => 'Tautan tidak dikenali';
 
   @override
@@ -4213,7 +4216,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get dialogDisableAndClear => 'Matikan dan hapus';
 
   @override
-  String get openInOtherServices => 'Buka di layanan lain';
+  String get openInOtherServices => 'Buka di Layanan Lain';
 
   @override
   String get shareSheetNoExtensions => 'Tidak ada layanan lain yang kompatibel';
@@ -4222,13 +4225,10 @@ class AppLocalizationsId extends AppLocalizations {
   String get shareSheetNotFound => 'Tidak ditemukan';
 
   @override
-  String get shareSheetCopyLink => 'Salin tautan';
+  String get shareSheetCopyLink => 'Salin Tautan';
 
   @override
   String shareSheetLinkCopied(Object service) {
     return 'Tautan $service disalin';
   }
-
-  @override
-  String get shareSheetOpen => 'Buka';
 }

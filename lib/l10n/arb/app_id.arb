@@ -905,6 +905,10 @@
   "@errorNoTracksFound": {
     "description": "Error - search returned no results"
   },
+  "searchEmptyResultSubtitle": "Coba kata kunci lain",
+  "@searchEmptyResultSubtitle": {
+    "description": "Subtitle shown under the empty search result state on the home screen"
+  },
   "errorUrlNotRecognized": "Tautan tidak dikenali",
   "@errorUrlNotRecognized": {
     "description": "Error title - URL not handled by any extension or service"
@@ -4656,7 +4660,7 @@
   "@dialogDisableAndClear": {
     "description": "Confirmation action to disable download history and clear existing entries"
   },
-  "openInOtherServices": "Buka di layanan lain",
+  "openInOtherServices": "Buka di Layanan Lain",
   "@openInOtherServices": {
     "description": "Title and tooltip for finding the current collection in other services"
   },
@@ -4668,7 +4672,7 @@
   "@shareSheetNotFound": {
     "description": "Cross-service share sheet row subtitle when a service has no match"
   },
-  "shareSheetCopyLink": "Salin tautan",
+  "shareSheetCopyLink": "Salin Tautan",
   "@shareSheetCopyLink": {
     "description": "Tooltip for copying a cross-service link"
   },
@@ -4678,9 +4682,5 @@
     "placeholders": {
       "service": {}
     }
-  },
-  "shareSheetOpen": "Buka",
-  "@shareSheetOpen": {
-    "description": "Tooltip for opening a cross-service link inside the app"
   }
 }

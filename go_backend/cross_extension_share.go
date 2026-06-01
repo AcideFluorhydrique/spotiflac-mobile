@@ -2,6 +2,7 @@ package gobackend
 
 import (
 	"encoding/json"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -15,6 +16,16 @@ type CrossExtensionShareResult struct {
 	ItemArtists string `json:"item_artists,omitempty"`
 	Error       string `json:"error,omitempty"`
 }
+
+var crossExtensionShareResultCache = struct {
+	sync.RWMutex
+	entries map[string]string
+	order   []string
+}{
+	entries: make(map[string]string),
+}
+
+const crossExtensionShareResultCacheLimit = 128
 
 func FindCollectionAcrossExtensionsJSON(requestJSON string) (string, error) {
 	var req struct {
@@ -49,6 +60,10 @@ func FindCollectionAcrossExtensionsJSON(requestJSON string) (string, error) {
 		}
 		work = append(work, provider)
 	}
+	cacheKey := crossExtensionShareCacheKey(req.Name, req.Artists, req.Type, req.SourceExtensionID, work)
+	if cached := getCrossExtensionShareCache(cacheKey); cached != "" {
+		return cached, nil
+	}
 
 	query := req.Name
 	if req.Artists != "" {
@@ -76,7 +91,85 @@ func FindCollectionAcrossExtensionsJSON(requestJSON string) (string, error) {
 	if err != nil {
 		return "[]", err
 	}
-	return string(data), nil
+	response := string(data)
+	if crossExtensionShareResultsCacheable(results) {
+		setCrossExtensionShareCache(cacheKey, response)
+	}
+	return response, nil
+}
+
+func crossExtensionShareCacheKey(name string, artists string, itemType string, sourceExtensionID string, providers []*extensionProviderWrapper) string {
+	providerKeys := make([]string, 0, len(providers))
+	for _, provider := range providers {
+		if provider == nil || provider.extension == nil {
+			continue
+		}
+		ext := provider.extension
+		displayName := ""
+		if ext.Manifest != nil {
+			displayName = ext.Manifest.DisplayName
+		}
+		providerKeys = append(providerKeys, strings.Join([]string{
+			strings.TrimSpace(ext.ID),
+			strings.TrimSpace(displayName),
+			strings.TrimSpace(ext.SourceDir),
+		}, "\x1f"))
+	}
+	sort.Strings(providerKeys)
+
+	return strings.Join([]string{
+		normalizeLooseTitle(itemType),
+		normalizeLooseTitle(name),
+		normalizeLooseArtistName(artists),
+		strings.TrimSpace(sourceExtensionID),
+		strings.Join(providerKeys, "\x1e"),
+	}, "\x1d")
+}
+
+func getCrossExtensionShareCache(key string) string {
+	if key == "" {
+		return ""
+	}
+	crossExtensionShareResultCache.RLock()
+	defer crossExtensionShareResultCache.RUnlock()
+	return crossExtensionShareResultCache.entries[key]
+}
+
+func setCrossExtensionShareCache(key string, value string) {
+	if key == "" || value == "" {
+		return
+	}
+	crossExtensionShareResultCache.Lock()
+	defer crossExtensionShareResultCache.Unlock()
+
+	if _, exists := crossExtensionShareResultCache.entries[key]; !exists {
+		crossExtensionShareResultCache.order = append(crossExtensionShareResultCache.order, key)
+	}
+	crossExtensionShareResultCache.entries[key] = value
+
+	for len(crossExtensionShareResultCache.order) > crossExtensionShareResultCacheLimit {
+		oldest := crossExtensionShareResultCache.order[0]
+		crossExtensionShareResultCache.order = crossExtensionShareResultCache.order[1:]
+		delete(crossExtensionShareResultCache.entries, oldest)
+	}
+}
+
+func crossExtensionShareResultsCacheable(results []CrossExtensionShareResult) bool {
+	for _, result := range results {
+		if result.Found {
+			continue
+		}
+		errText := strings.ToLower(strings.TrimSpace(result.Error))
+		if errText == "" ||
+			errText == "no results" ||
+			errText == "unsupported collection type" ||
+			strings.HasSuffix(errText, " not found") ||
+			strings.Contains(errText, "found without shareable link") {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func findCollectionForExtension(

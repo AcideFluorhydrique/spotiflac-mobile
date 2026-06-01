@@ -1,10 +1,14 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
+import 'package:spotiflac_android/providers/extension_provider.dart';
 import 'package:spotiflac_android/services/cross_extension_share_service.dart';
 import 'package:spotiflac_android/services/share_intent_service.dart';
 
-class CrossExtensionShareSheet extends StatefulWidget {
+class CrossExtensionShareSheet extends ConsumerStatefulWidget {
   final String name;
   final String artists;
   final String type;
@@ -44,11 +48,12 @@ class CrossExtensionShareSheet extends StatefulWidget {
   }
 
   @override
-  State<CrossExtensionShareSheet> createState() =>
+  ConsumerState<CrossExtensionShareSheet> createState() =>
       _CrossExtensionShareSheetState();
 }
 
-class _CrossExtensionShareSheetState extends State<CrossExtensionShareSheet> {
+class _CrossExtensionShareSheetState
+    extends ConsumerState<CrossExtensionShareSheet> {
   late final Future<List<CrossExtensionShareResult>> _future;
 
   @override
@@ -71,6 +76,18 @@ class _CrossExtensionShareSheetState extends State<CrossExtensionShareSheet> {
         });
   }
 
+  String? _iconPathFor(String extensionId) {
+    if (extensionId.isEmpty) return null;
+    final extensions = ref.read(extensionProvider).extensions;
+    for (final ext in extensions) {
+      if (ext.id == extensionId) {
+        final path = ext.iconPath;
+        return (path != null && path.isNotEmpty) ? path : null;
+      }
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -86,25 +103,23 @@ class _CrossExtensionShareSheetState extends State<CrossExtensionShareSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const SizedBox(height: 8),
             Center(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 12, bottom: 8),
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 4),
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 4),
               child: Text(
                 context.l10n.openInOtherServices,
-                style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
@@ -147,14 +162,16 @@ class _CrossExtensionShareSheetState extends State<CrossExtensionShareSheet> {
                     );
                   }
 
-                  return ListView.separated(
+                  return ListView.builder(
                     shrinkWrap: true,
-                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+                    padding: const EdgeInsets.only(bottom: 16, top: 4),
                     itemBuilder: (context, index) {
-                      return _CrossExtensionShareTile(result: results[index]);
+                      final result = results[index];
+                      return _CrossExtensionShareTile(
+                        result: result,
+                        iconPath: _iconPathFor(result.extensionId),
+                      );
                     },
-                    separatorBuilder: (_, _) =>
-                        const Divider(height: 1, indent: 72),
                     itemCount: results.length,
                   );
                 },
@@ -169,33 +186,28 @@ class _CrossExtensionShareSheetState extends State<CrossExtensionShareSheet> {
 
 class _CrossExtensionShareTile extends StatelessWidget {
   final CrossExtensionShareResult result;
+  final String? iconPath;
 
-  const _CrossExtensionShareTile({required this.result});
+  const _CrossExtensionShareTile({required this.result, this.iconPath});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final url = result.found ? result.url : null;
-    final hasUrl = url != null && url.isNotEmpty;
+    final url = result.url;
+    final hasUrl = result.found && url != null && url.isNotEmpty;
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    final tile = ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
       leading: Container(
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: hasUrl
-              ? colorScheme.primaryContainer
-              : colorScheme.surfaceContainerHighest,
-          shape: BoxShape.circle,
+          color: colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(
-          hasUrl ? Icons.link_rounded : Icons.link_off_rounded,
-          color: hasUrl
-              ? colorScheme.onPrimaryContainer
-              : colorScheme.onSurfaceVariant,
-        ),
+        clipBehavior: Clip.antiAlias,
+        child: _buildIcon(colorScheme),
       ),
       title: Text(
         result.displayName,
@@ -210,39 +222,53 @@ class _CrossExtensionShareTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: textTheme.bodySmall?.copyWith(
-          color: hasUrl ? colorScheme.primary : colorScheme.onSurfaceVariant,
+          color: colorScheme.onSurfaceVariant,
         ),
       ),
       trailing: hasUrl
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  tooltip: context.l10n.shareSheetCopyLink,
-                  icon: const Icon(Icons.copy_rounded, size: 20),
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: url));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          context.l10n.shareSheetLinkCopied(result.displayName),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                IconButton(
-                  tooltip: context.l10n.shareSheetOpen,
-                  icon: const Icon(Icons.open_in_new_rounded, size: 20),
-                  color: colorScheme.primary,
-                  onPressed: () {
-                    Navigator.pop(context);
-                    ShareIntentService().injectUrl(url);
-                  },
-                ),
-              ],
+          ? IconButton(
+              tooltip: context.l10n.shareSheetCopyLink,
+              icon: const Icon(Icons.copy_rounded, size: 20),
+              color: colorScheme.onSurfaceVariant,
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: url));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      context.l10n.shareSheetLinkCopied(result.displayName),
+                    ),
+                  ),
+                );
+              },
             )
           : null,
+      onTap: hasUrl
+          ? () {
+              Navigator.pop(context);
+              ShareIntentService().injectUrl(url);
+            }
+          : null,
+    );
+
+    if (hasUrl) return tile;
+    return Opacity(opacity: 0.5, child: tile);
+  }
+
+  Widget _buildIcon(ColorScheme colorScheme) {
+    final fallbackIcon = Icon(
+      Icons.extension_rounded,
+      color: colorScheme.onSurfaceVariant,
+    );
+
+    final path = iconPath;
+    if (path == null) return fallbackIcon;
+
+    return Image.file(
+      File(path),
+      width: 44,
+      height: 44,
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => fallbackIcon,
     );
   }
 }

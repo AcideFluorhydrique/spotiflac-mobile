@@ -1404,6 +1404,12 @@ abstract class AppLocalizations {
   /// **'No tracks found'**
   String get errorNoTracksFound;
 
+  /// Subtitle shown under the empty search result state on the home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Try another keyword'**
+  String get searchEmptyResultSubtitle;
+
   /// Error title - URL not handled by any extension or service
   ///
   /// In en, this message translates to:
@@ -7040,7 +7046,7 @@ abstract class AppLocalizations {
   /// Title and tooltip for finding the current collection in other services
   ///
   /// In en, this message translates to:
-  /// **'Open in other services'**
+  /// **'Open in Other Services'**
   String get openInOtherServices;
 
   /// Empty state when no extensions can be searched for cross-service links
@@ -7058,7 +7064,7 @@ abstract class AppLocalizations {
   /// Tooltip for copying a cross-service link
   ///
   /// In en, this message translates to:
-  /// **'Copy link'**
+  /// **'Copy Link'**
   String get shareSheetCopyLink;
 
   /// Snackbar after copying a cross-service link
@@ -7066,12 +7072,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{service} link copied'**
   String shareSheetLinkCopied(Object service);
-
-  /// Tooltip for opening a cross-service link inside the app
-  ///
-  /// In en, this message translates to:
-  /// **'Open'**
-  String get shareSheetOpen;
 }
 
 class _AppLocalizationsDelegate

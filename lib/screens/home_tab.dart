@@ -46,6 +46,8 @@ class _HomeTabState extends ConsumerState<HomeTab>
   final _urlController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   String? _lastSearchQuery;
+  String? _activeSearchInput;
+  bool _isResettingSearchSurface = false;
   late final ProviderSubscription<TrackState> _trackStateSub;
   late final ProviderSubscription<bool> _extensionInitSub;
   late final ProviderSubscription<bool> _homeFeedExtSub;
@@ -557,7 +559,16 @@ class _HomeTabState extends ConsumerState<HomeTab>
 
     if (text.isEmpty) {
       _liveSearchDebounce?.cancel();
+      _activeSearchInput = null;
+      _lastSearchQuery = null;
+      if (!_isResettingSearchSurface) {
+        _resetSearchSurface(clearText: false);
+      }
       return;
+    }
+
+    if (_activeSearchInput != null && _activeSearchInput != text) {
+      _activeSearchInput = null;
     }
 
     if (_isLiveSearchEnabled() && text.length >= _minLiveSearchChars) {
@@ -638,10 +649,17 @@ class _HomeTabState extends ConsumerState<HomeTab>
 
     final searchKey =
         '${searchProvider ?? 'default'}:$query:${selectedFilter ?? 'all'}';
-    if (_lastSearchQuery == searchKey) return;
+    if (_lastSearchQuery == searchKey) {
+      _activeSearchInput = query;
+      ref.read(trackProvider.notifier).setSearchText(query.trim().isNotEmpty);
+      if (mounted) setState(() {});
+      return;
+    }
     _lastSearchQuery = searchKey;
+    _activeSearchInput = query;
     _searchSortOption = _SearchSortOption.defaultOrder;
     _invalidateSearchSortCaches();
+    ref.read(trackProvider.notifier).setSearchText(query.trim().isNotEmpty);
 
     final isExtensionEnabled =
         searchProvider != null &&
@@ -686,12 +704,26 @@ class _HomeTabState extends ConsumerState<HomeTab>
   }
 
   Future<void> _clearAndRefresh() async {
-    _liveSearchDebounce?.cancel();
-    _pendingLiveSearchQuery = null;
-    _urlController.clear();
-    _searchFocusNode.unfocus();
-    _lastSearchQuery = null;
-    ref.read(trackProvider.notifier).clear();
+    _resetSearchSurface();
+  }
+
+  void _resetSearchSurface({bool clearText = true}) {
+    if (_isResettingSearchSurface) return;
+    _isResettingSearchSurface = true;
+    try {
+      _liveSearchDebounce?.cancel();
+      _pendingLiveSearchQuery = null;
+      _lastSearchQuery = null;
+      _activeSearchInput = null;
+      FocusManager.instance.primaryFocus?.unfocus();
+      if (clearText && _urlController.text.isNotEmpty) {
+        _urlController.clear();
+      }
+      ref.read(trackProvider.notifier).clear();
+      if (mounted) setState(() {});
+    } finally {
+      _isResettingSearchSurface = false;
+    }
   }
 
   Future<void> _fetchMetadata() async {
@@ -1114,6 +1146,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
       ),
     );
     final isLoading = ref.watch(trackProvider.select((s) => s.isLoading));
+    final searchError = ref.watch(trackProvider.select((s) => s.error));
     final hasSearchedBefore = ref.watch(
       settingsProvider.select((s) => s.hasSearchedBefore),
     );
@@ -1153,6 +1186,18 @@ class _HomeTabState extends ConsumerState<HomeTab>
     final isSearchFocused = _searchFocusNode.hasFocus;
     final hasShortSearchInput =
         hasSearchInput && searchText.length < _minLiveSearchChars;
+    final hasSearchError = hasSearchInput && searchError != null;
+    final hasActiveSearchSurface =
+        hasSearchInput &&
+        (_activeSearchInput == searchText ||
+            hasActualResults ||
+            isLoading ||
+            hasSearchError);
+    final showEmptySearchResult =
+        hasActiveSearchSurface &&
+        !hasActualResults &&
+        !isLoading &&
+        searchError == null;
     final isShowingRecentAccess = ref.watch(
       trackProvider.select((s) => s.isShowingRecentAccess),
     );
@@ -1166,7 +1211,11 @@ class _HomeTabState extends ConsumerState<HomeTab>
     final recentModeRequested = isShowingRecentAccess || isSearchFocused;
     final showRecentAccess =
         recentModeRequested &&
-        (!hasSearchInput || hasShortSearchInput || !hasActualResults) &&
+        (!hasSearchInput ||
+            hasShortSearchInput ||
+            (!hasActualResults &&
+                !hasSearchError &&
+                !hasActiveSearchSurface)) &&
         !isLoading;
     final isSearchProviderLoading =
         !extensionReadiness.isInitialized && extensionReadiness.error == null;
@@ -1180,6 +1229,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
     final showExplore =
         !hasActualResults &&
         !isLoading &&
+        !hasActiveSearchSurface &&
         !showRecentAccess &&
         !homeFeedDisabled &&
         (hasHomeFeedExtension || hasExploreContent) &&
@@ -1299,7 +1349,9 @@ class _HomeTabState extends ConsumerState<HomeTab>
                   ),
                 ),
 
-              if (hasActualResults && !showRecentAccess)
+              if (hasActiveSearchSurface &&
+                  !showRecentAccess &&
+                  !showEmptySearchResult)
                 Consumer(
                   builder: (context, ref, _) {
                     final currentSearchProvider = ref.watch(
@@ -1466,7 +1518,8 @@ class _HomeTabState extends ConsumerState<HomeTab>
                       (searchAlbums != null && searchAlbums.isNotEmpty) ||
                       (searchPlaylists != null && searchPlaylists.isNotEmpty) ||
                       isLoading ||
-                      error != null;
+                      error != null ||
+                      hasActiveSearchSurface;
 
                   return SliverMainAxisGroup(
                     slivers: _buildSearchResults(
@@ -1478,6 +1531,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
                       error: error,
                       colorScheme: colorScheme,
                       hasResults: hasResults,
+                      showEmptySearchResult: showEmptySearchResult,
                       searchExtensionId: searchExtensionId,
                       showLocalLibraryIndicator: showLocalLibraryIndicator,
                       thumbnailSizesByExtensionId: thumbnailSizesByExtensionId,
@@ -2611,6 +2665,47 @@ class _HomeTabState extends ConsumerState<HomeTab>
     );
   }
 
+  Widget _buildEmptySearchResultWidget(ColorScheme colorScheme) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 340),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 86,
+            height: 86,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: colorScheme.surfaceContainerHighest,
+            ),
+            child: Icon(
+              Icons.manage_search,
+              size: 46,
+              color: colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            context.l10n.errorNoTracksFound,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            context.l10n.searchEmptyResultSubtitle,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _sortOptionLabel(_SearchSortOption option) {
     switch (option) {
       case _SearchSortOption.defaultOrder:
@@ -2888,6 +2983,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
     required String? error,
     required ColorScheme colorScheme,
     required bool hasResults,
+    required bool showEmptySearchResult,
     required String? searchExtensionId,
     required bool showLocalLibraryIndicator,
     required Map<String, (double, double)> thumbnailSizesByExtensionId,
@@ -2932,6 +3028,16 @@ class _HomeTabState extends ConsumerState<HomeTab>
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: LinearProgressIndicator(),
+          ),
+        ),
+      if (showEmptySearchResult && !hasActualData)
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 96),
+              child: _buildEmptySearchResultWidget(colorScheme),
+            ),
           ),
         ),
     ];

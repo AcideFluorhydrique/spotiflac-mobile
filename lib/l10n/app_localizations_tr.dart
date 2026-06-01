@@ -751,6 +751,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get errorNoTracksFound => 'Parça bulunamadı';
 
   @override
+  String get searchEmptyResultSubtitle => 'Try another keyword';
+
+  @override
   String get errorUrlNotRecognized => 'Bağlantı tanınamadı';
 
   @override
@@ -4248,7 +4251,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get dialogDisableAndClear => 'Turn off and clear';
 
   @override
-  String get openInOtherServices => 'Open in other services';
+  String get openInOtherServices => 'Open in Other Services';
 
   @override
   String get shareSheetNoExtensions => 'No other compatible services';
@@ -4257,13 +4260,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get shareSheetNotFound => 'Not found';
 
   @override
-  String get shareSheetCopyLink => 'Copy link';
+  String get shareSheetCopyLink => 'Copy Link';
 
   @override
   String shareSheetLinkCopied(Object service) {
     return '$service link copied';
   }
-
-  @override
-  String get shareSheetOpen => 'Open';
 }

@@ -56,3 +56,45 @@ func TestCrossExtensionShareUsesArtistCollectionItems(t *testing.T) {
 		t.Fatalf("artist share URL = %q", url)
 	}
 }
+
+func TestCrossExtensionShareCacheKeyIsProviderOrderStable(t *testing.T) {
+	apple := &extensionProviderWrapper{
+		extension: &loadedExtension{
+			ID:        "apple",
+			SourceDir: "/extensions/apple",
+			Manifest:  &ExtensionManifest{DisplayName: "Apple Music"},
+		},
+	}
+	qobuz := &extensionProviderWrapper{
+		extension: &loadedExtension{
+			ID:        "qobuz",
+			SourceDir: "/extensions/qobuz",
+			Manifest:  &ExtensionManifest{DisplayName: "Qobuz"},
+		},
+	}
+
+	first := crossExtensionShareCacheKey("Nevermind", "Nirvana", "album", "spotify", []*extensionProviderWrapper{apple, qobuz})
+	second := crossExtensionShareCacheKey("Nevermind", "Nirvana", "album", "spotify", []*extensionProviderWrapper{qobuz, apple})
+	if first != second {
+		t.Fatalf("cache key should not depend on provider order:\n%s\n%s", first, second)
+	}
+}
+
+func TestCrossExtensionShareCacheableSkipsTransientErrors(t *testing.T) {
+	cacheable := []CrossExtensionShareResult{
+		{ExtensionID: "apple", Found: true, URL: "https://music.apple.com/us/album/1"},
+		{ExtensionID: "qobuz", Error: "album not found"},
+		{ExtensionID: "tidal", Error: "no results"},
+	}
+	if !crossExtensionShareResultsCacheable(cacheable) {
+		t.Fatal("expected found and deterministic not-found results to be cacheable")
+	}
+
+	transient := []CrossExtensionShareResult{
+		{ExtensionID: "apple", Found: true, URL: "https://music.apple.com/us/album/1"},
+		{ExtensionID: "qobuz", Error: "request failed: timeout"},
+	}
+	if crossExtensionShareResultsCacheable(transient) {
+		t.Fatal("expected transient extension errors to skip cache")
+	}
+}
