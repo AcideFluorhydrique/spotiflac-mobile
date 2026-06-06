@@ -2096,7 +2096,7 @@
   "@downloadedAlbumDeleteSelected": {
     "description": "Button - delete selected tracks"
   },
-  "downloadedAlbumDeleteMessage": "Souhaitez-vous supprimer {count} {count, plural, =1{piste} other {pistes}} de cet album ?\n\nCela supprimera également les fichiers de l'espace de stockage.",
+  "downloadedAlbumDeleteMessage": "Souhaitez-vous supprimer {count} {count, plural, =1{piste} other{pistes}} de cet album ?\n\nCela supprimera également les fichiers de l'espace de stockage.",
   "@downloadedAlbumDeleteMessage": {
     "description": "Delete confirmation with count",
     "placeholders": {
@@ -2454,7 +2454,7 @@
       }
     }
   },
-  "libraryFilesUnit": "{count, plural, one {}=1{fichier} other{fichiers}}",
+  "libraryFilesUnit": "{count, plural, =1{fichier} other{fichiers}}",
   "@libraryFilesUnit": {
     "description": "Unit label for files count during library scanning",
     "placeholders": {
@@ -3954,7 +3954,7 @@
   "@snackbarSelectedPlaylistsEmpty": {
     "description": "Snackbar when selected playlists contain no tracks"
   },
-  "playlistsCount": "{count, plural, one {}=1{1 playlist} other{{count} playlists}}",
+  "playlistsCount": "{count, plural, =1{1 playlist} other{{count} playlists}}",
   "@playlistsCount": {
     "description": "Playlist count display",
     "placeholders": {
@@ -4069,7 +4069,7 @@
   "@queueFilteringIndicator": {
     "description": "Shown while filter results are being computed"
   },
-  "queueTrackCount": "{count, plural, one {}=1{1 titre} other{{count} titres}}",
+  "queueTrackCount": "{count, plural, =1{1 titre} other{{count} titres}}",
   "@queueTrackCount": {
     "description": "Track count label with plural support",
     "placeholders": {
@@ -5110,7 +5110,7 @@
   "@libraryFilterMetadataMissingLabel": {
     "description": "Filter option - items missing record label"
   },
-  "collectionDeletePlaylistsMessage": "Supprimer {count} {count, plural, one {}=1{playlist} other{playlists}}?",
+  "collectionDeletePlaylistsMessage": "Supprimer {count} {count, plural, =1{playlist} other{playlists}}?",
   "@collectionDeletePlaylistsMessage": {
     "description": "Confirmation message for deleting selected playlists",
     "placeholders": {
@@ -5119,7 +5119,7 @@
       }
     }
   },
-  "collectionPlaylistsDeleted": "{count} {count, plural, one {}=1{playlist} other{playlists}} supprimées",
+  "collectionPlaylistsDeleted": "{count} {count, plural, =1{playlist} other{playlists}} supprimées",
   "@collectionPlaylistsDeleted": {
     "description": "Snackbar after deleting selected playlists",
     "placeholders": {

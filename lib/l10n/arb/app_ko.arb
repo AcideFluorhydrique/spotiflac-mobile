@@ -838,7 +838,7 @@
   "@snackbarCredentialsCleared": {
     "description": "Snackbar - Spotify credentials removed"
   },
-  "snackbarDeletedTracks": "{count}{count, plural,=1{track}other{tracks}} 제거됨",
+  "snackbarDeletedTracks": "{count}{count, plural, =1{track} other{tracks}} 제거됨",
   "@snackbarDeletedTracks": {
     "description": "Snackbar - tracks deleted",
     "placeholders": {

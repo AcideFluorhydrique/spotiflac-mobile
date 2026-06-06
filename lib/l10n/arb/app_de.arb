@@ -759,7 +759,7 @@
   "@dialogDeleteSelectedTitle": {
     "description": "Dialog title - delete selected items"
   },
-  "dialogDeleteSelectedMessage": "Lösche {count} {count, plural, one {}=1{Track} other{Tracks}} aus dem Verlauf?\n\nDies löscht auch die Dateien aus dem Speicher.",
+  "dialogDeleteSelectedMessage": "Lösche {count} {count, plural, =1{Track} other{Tracks}} aus dem Verlauf?\n\nDies löscht auch die Dateien aus dem Speicher.",
   "@dialogDeleteSelectedMessage": {
     "description": "Dialog message - delete selected tracks",
     "placeholders": {
@@ -838,7 +838,7 @@
   "@snackbarCredentialsCleared": {
     "description": "Snackbar - Spotify credentials removed"
   },
-  "snackbarDeletedTracks": "{count} {count, plural, one {}=1{Titel} other{Titel}}",
+  "snackbarDeletedTracks": "{count} {count, plural, =1{Titel} other{Titel}}",
   "@snackbarDeletedTracks": {
     "description": "Snackbar - tracks deleted",
     "placeholders": {
@@ -2096,7 +2096,7 @@
   "@downloadedAlbumDeleteSelected": {
     "description": "Button - delete selected tracks"
   },
-  "downloadedAlbumDeleteMessage": "{count} {count, plural, one {}=1{Titel} other{Titel}} aus diesem Album löschen?\n\nDadurch werden auch die Dateien aus dem Speicher gelöscht.",
+  "downloadedAlbumDeleteMessage": "{count} {count, plural, =1{Titel} other{Titel}} aus diesem Album löschen?\n\nDadurch werden auch die Dateien aus dem Speicher gelöscht.",
   "@downloadedAlbumDeleteMessage": {
     "description": "Delete confirmation with count",
     "placeholders": {
@@ -2122,7 +2122,7 @@
   "@downloadedAlbumTapToSelect": {
     "description": "Selection hint"
   },
-  "downloadedAlbumDeleteCount": "Lösche {count} {count, plural, one {}=1{Titel}other{Titel}}",
+  "downloadedAlbumDeleteCount": "Lösche {count} {count, plural, =1{Titel} other{Titel}}",
   "@downloadedAlbumDeleteCount": {
     "description": "Delete button text with count",
     "placeholders": {
@@ -2637,7 +2637,7 @@
   "@timeJustNow": {
     "description": "Relative time - less than a minute ago"
   },
-  "timeMinutesAgo": "{count, plural, one {}=1{vor 1 Minute} other{vor {count} Minuten}}",
+  "timeMinutesAgo": "{count, plural, =1{vor 1 Minute} other{vor {count} Minuten}}",
   "@timeMinutesAgo": {
     "description": "Relative time - minutes ago",
     "placeholders": {
@@ -2646,7 +2646,7 @@
       }
     }
   },
-  "timeHoursAgo": "{count, plural, one {}=1{vor 1 Stunde} other{vor {count} Stunden}}",
+  "timeHoursAgo": "{count, plural, =1{vor 1 Stunde} other{vor {count} Stunden}}",
   "@timeHoursAgo": {
     "description": "Relative time - hours ago",
     "placeholders": {
@@ -3470,7 +3470,7 @@
   "@collectionPlaylistRemoveCover": {
     "description": "Bottom sheet action to remove custom cover image from a playlist"
   },
-  "selectionShareCount": "Teile {count} {count, plural, one {}=1{Titel}other{Titel}}",
+  "selectionShareCount": "Teile {count} {count, plural, =1{Titel} other{Titel}}",
   "@selectionShareCount": {
     "description": "Share button text with count in selection mode",
     "placeholders": {
@@ -3483,7 +3483,7 @@
   "@selectionShareNoFiles": {
     "description": "Snackbar when no selected files exist on disk"
   },
-  "selectionConvertCount": "Konvertiere {count} {count, plural, one {}=1{Titel}other{Titel}}",
+  "selectionConvertCount": "Konvertiere {count} {count, plural, =1{Titel} other{Titel}}",
   "@selectionConvertCount": {
     "description": "Convert button text with count in selection mode",
     "placeholders": {
@@ -3500,7 +3500,7 @@
   "@selectionBatchConvertConfirmTitle": {
     "description": "Confirmation dialog title for batch conversion"
   },
-  "selectionBatchConvertConfirmMessage": "Konvertiere {count} {format} {count, plural, one {}=1{Titel} other{Titel}} zu {bitrate}?\n\nOriginaldateien werden nach der Konvertierung gelöscht.",
+  "selectionBatchConvertConfirmMessage": "Konvertiere {count} {format} {count, plural, =1{Titel} other{Titel}} zu {bitrate}?\n\nOriginaldateien werden nach der Konvertierung gelöscht.",
   "@selectionBatchConvertConfirmMessage": {
     "description": "Confirmation dialog message for batch conversion",
     "placeholders": {
@@ -3515,7 +3515,7 @@
       }
     }
   },
-  "selectionBatchConvertConfirmMessageLossless": "Konvertiere {count} {count, plural, one {}=1{Titel} other{Titel}} in {format}? (kein Qualitätsverlust)\n\nOriginaldateien werden nach der Konvertierung gelöscht.",
+  "selectionBatchConvertConfirmMessageLossless": "Konvertiere {count} {count, plural, =1{Titel} other{Titel}} in {format}? (kein Qualitätsverlust)\n\nOriginaldateien werden nach der Konvertierung gelöscht.",
   "@selectionBatchConvertConfirmMessageLossless": {
     "description": "Confirmation dialog message for lossless batch conversion",
     "placeholders": {
@@ -3925,7 +3925,7 @@
   "@cacheRefresh": {
     "description": "Tooltip for refresh button on cache management page"
   },
-  "dialogDownloadPlaylistsMessage": "Lade {trackCount} {trackCount, plural, one {}=1{Titel} other{Titel}} von {playlistCount} {playlistCount, plural, one {}=1{Playlist} other{Playlists}}?",
+  "dialogDownloadPlaylistsMessage": "Lade {trackCount} {trackCount, plural, =1{Titel} other{Titel}} von {playlistCount} {playlistCount, plural, =1{Playlist} other{Playlists}}?",
   "@dialogDownloadPlaylistsMessage": {
     "description": "Dialog message for bulk playlist download confirmation",
     "placeholders": {
@@ -3937,7 +3937,7 @@
       }
     }
   },
-  "bulkDownloadPlaylistsButton": "Lade {count} {count, plural, one {}=1{Playlist} other{Playlists}} herunter",
+  "bulkDownloadPlaylistsButton": "Lade {count} {count, plural, =1{Playlist} other{Playlists}} herunter",
   "@bulkDownloadPlaylistsButton": {
     "description": "Button label for bulk downloading selected playlists",
     "placeholders": {
@@ -3954,7 +3954,7 @@
   "@snackbarSelectedPlaylistsEmpty": {
     "description": "Snackbar when selected playlists contain no tracks"
   },
-  "playlistsCount": "{count, plural, one {}=1{1 Playlist} other{{count} Playlists}}",
+  "playlistsCount": "{count, plural, =1{1 Playlist} other{{count} Playlists}}",
   "@playlistsCount": {
     "description": "Playlist count display",
     "placeholders": {
@@ -3983,7 +3983,7 @@
   "@editMetadataAutoFillNoResults": {
     "description": "Snackbar when online metadata search returns no results"
   },
-  "editMetadataAutoFillDone": "{count} {count, plural, one {}=1{Feld} other{Felder}} aus Online-Metadaten gefüllt",
+  "editMetadataAutoFillDone": "{count} {count, plural, =1{Feld} other{Felder}} aus Online-Metadaten gefüllt",
   "@editMetadataAutoFillDone": {
     "description": "Snackbar confirming how many fields were auto-filled",
     "placeholders": {
@@ -4630,7 +4630,7 @@
   "@collectionFavoriteArtists": {
     "description": "Custom folder for favorite artists"
   },
-  "collectionArtistCount": "{count, plural, one {}=1{1 Künstler} other{{count} Künstler}}",
+  "collectionArtistCount": "{count, plural, =1{1 Künstler} other{{count} Künstler}}",
   "@collectionArtistCount": {
     "description": "Artist count label for favorite artists",
     "placeholders": {
@@ -4729,7 +4729,7 @@
   "@extensionsHomeFeedOffSubtitle": {
     "description": "Extensions page - subtitle for off home feed option"
   },
-  "notifDownloadsFinishedBody": "{completed, plural, =1{1 Titel heruntergeladen}other{{completed} Titel heruntergeladen}}, {failed, plural, =1{1 fehlgeschlagen} other{{failed} fehlgeschlagen}}",
+  "notifDownloadsFinishedBody": "{completed, plural, =1{1 Titel heruntergeladen} other{{completed} Titel heruntergeladen}}, {failed, plural, =1{1 fehlgeschlagen} other{{failed} fehlgeschlagen}}",
   "@notifDownloadsFinishedBody": {
     "description": "Notification body when queue finishes with failures",
     "placeholders": {
@@ -4745,7 +4745,7 @@
   "@notifDownloadsCanceledTitle": {
     "description": "Notification title when downloads are canceled by the user"
   },
-  "notifDownloadsCanceledBody": "{count, plural, one {}=1{1 Download vom Nutzer abgebrochen} other{{count} Downloads vom Nutzer abgebrochen}}",
+  "notifDownloadsCanceledBody": "{count, plural, =1{1 Download vom Nutzer abgebrochen} other{{count} Downloads vom Nutzer abgebrochen}}",
   "@notifDownloadsCanceledBody": {
     "description": "Notification body when downloads are canceled by the user",
     "placeholders": {
@@ -5009,7 +5009,7 @@
       }
     }
   },
-  "a11yOpenItemCount": "Öffne {title}, {count} {count, plural,=1{Item}other{Items}}",
+  "a11yOpenItemCount": "Öffne {title}, {count} {count, plural, =1{Item} other{Items}}",
   "@a11yOpenItemCount": {
     "description": "Accessibility label for opening a grouped item with count",
     "placeholders": {
@@ -5110,7 +5110,7 @@
   "@libraryFilterMetadataMissingLabel": {
     "description": "Filter option - items missing record label"
   },
-  "collectionDeletePlaylistsMessage": "Lösche {count} {count, plural, one {}=1{Playlist} other{Playlists}}?",
+  "collectionDeletePlaylistsMessage": "Lösche {count} {count, plural, =1{Playlist} other{Playlists}}?",
   "@collectionDeletePlaylistsMessage": {
     "description": "Confirmation message for deleting selected playlists",
     "placeholders": {
@@ -5119,7 +5119,7 @@
       }
     }
   },
-  "collectionPlaylistsDeleted": "{count} {count, plural, one {}=1{Playlist} other{Playlists}} gelöscht",
+  "collectionPlaylistsDeleted": "{count} {count, plural, =1{Playlist} other{Playlists}} gelöscht",
   "@collectionPlaylistsDeleted": {
     "description": "Snackbar after deleting selected playlists",
     "placeholders": {
@@ -5128,7 +5128,7 @@
       }
     }
   },
-  "collectionAddedTracksToPlaylist": "{count} {count, plural, one {}=1{Titel} other{Titel}} zu {playlistName} hinzugefügt",
+  "collectionAddedTracksToPlaylist": "{count} {count, plural, =1{Titel} other{Titel}} zu {playlistName} hinzugefügt",
   "@collectionAddedTracksToPlaylist": {
     "description": "Snackbar after adding multiple tracks to a playlist",
     "placeholders": {
@@ -5140,7 +5140,7 @@
       }
     }
   },
-  "collectionAddedTracksToPlaylistWithExisting": "{count} {count, plural, one {}=1{Titel} other{Titel}} zu {playlistName} ({alreadyCount} bereits in der Playlist)",
+  "collectionAddedTracksToPlaylistWithExisting": "{count} {count, plural, =1{Titel} other{Titel}} zu {playlistName} ({alreadyCount} bereits in der Playlist)",
   "@collectionAddedTracksToPlaylistWithExisting": {
     "description": "Snackbar after adding multiple tracks to a playlist when some were already present",
     "placeholders": {
@@ -5155,7 +5155,7 @@
       }
     }
   },
-  "itemCount": "{count} {count, plural, one {}=1{Sache} other{Sachen}}",
+  "itemCount": "{count} {count, plural, =1{Sache} other{Sachen}}",
   "@itemCount": {
     "description": "Generic item count label",
     "placeholders": {
@@ -5179,7 +5179,7 @@
       }
     }
   },
-  "selectionDeleteTracksCount": "Lösche {count} {count, plural, one {}=1{Titel}other{Titel}}",
+  "selectionDeleteTracksCount": "Lösche {count} {count, plural, =1{Titel} other{Titel}}",
   "@selectionDeleteTracksCount": {
     "description": "Button label for deleting selected tracks",
     "placeholders": {
@@ -5221,7 +5221,7 @@
       }
     }
   },
-  "storeExtensionsCount": "{count} {count, plural, one {}=1{Erweiterung} other{Erweiterungen}}",
+  "storeExtensionsCount": "{count} {count, plural, =1{Erweiterung} other{Erweiterungen}}",
   "@storeExtensionsCount": {
     "description": "Store extension result count",
     "placeholders": {
@@ -5340,7 +5340,7 @@
   "@extensionCustomUrlHandlingShareHint": {
     "description": "Extension detail hint explaining share-to-app URL handling"
   },
-  "extensionSettingsCount": "{count} {count, plural, one {}=1{Einstellung} other{Einstellungen}}",
+  "extensionSettingsCount": "{count} {count, plural, =1{Einstellung} other{Einstellungen}}",
   "@extensionSettingsCount": {
     "description": "Count of settings exposed by an extension quality option",
     "placeholders": {

@@ -759,7 +759,7 @@
   "@dialogDeleteSelectedTitle": {
     "description": "Dialog title - delete selected items"
   },
-  "dialogDeleteSelectedMessage": "¿Eliminar {count} {count, plural, one {}=1{pista} other{pistas}} del historial?\n\nEsto también eliminará los archivos del almacenamiento.",
+  "dialogDeleteSelectedMessage": "¿Eliminar {count} {count, plural, =1{pista} other{pistas}} del historial?\n\nEsto también eliminará los archivos del almacenamiento.",
   "@dialogDeleteSelectedMessage": {
     "description": "Dialog message - delete selected tracks",
     "placeholders": {
@@ -1453,7 +1453,7 @@
       }
     }
   },
-  "tracksCount": "{count, plural, one {}=1{1 pista} other{{count} pistas}}",
+  "tracksCount": "{count, plural, =1{1 pista} other{{count} pistas}}",
   "@tracksCount": {
     "description": "Track count display",
     "placeholders": {
@@ -2096,7 +2096,7 @@
   "@downloadedAlbumDeleteSelected": {
     "description": "Button - delete selected tracks"
   },
-  "downloadedAlbumDeleteMessage": "¿Eliminar {count} {count, plural, one {}=1{pista} other{pistas}} del historial?\n\nEsto también eliminará los archivos del almacenamiento.",
+  "downloadedAlbumDeleteMessage": "¿Eliminar {count} {count, plural, =1{pista} other{pistas}} del historial?\n\nEsto también eliminará los archivos del almacenamiento.",
   "@downloadedAlbumDeleteMessage": {
     "description": "Delete confirmation with count",
     "placeholders": {
@@ -5155,7 +5155,7 @@
       }
     }
   },
-  "itemCount": "{count} {count, plural, =1 {objeto} other{objetos}}",
+  "itemCount": "{count} {count, plural, =1{objeto} other{objetos}}",
   "@itemCount": {
     "description": "Generic item count label",
     "placeholders": {
