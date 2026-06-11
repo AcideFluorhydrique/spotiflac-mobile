@@ -26,6 +26,7 @@ class _LyricsProviderPriorityPageState
     'youtube',
     'kugou',
     'genius',
+    'lyricsplus',
   ];
 
   late List<String> _enabledProviders;
@@ -244,6 +245,12 @@ class _LyricsProviderPriorityPageState
           name: 'Genius',
           description: context.l10n.lyricsProviderExtensionDesc,
           icon: Icons.auto_awesome_outlined,
+        );
+      case 'lyricsplus':
+        return _LyricsProviderInfo(
+          name: 'LyricsPlus',
+          description: context.l10n.lyricsProviderLyricsPlusDesc,
+          icon: Icons.lyrics_outlined,
         );
       default:
         return _LyricsProviderInfo(

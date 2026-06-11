@@ -14,6 +14,7 @@ import 'package:spotiflac_android/utils/image_cache_utils.dart';
 import 'package:spotiflac_android/utils/lyrics_metadata_helper.dart';
 import 'package:spotiflac_android/services/library_database.dart';
 import 'package:spotiflac_android/services/ffmpeg_service.dart';
+import 'package:spotiflac_android/services/replaygain_service.dart';
 import 'package:spotiflac_android/services/local_track_redownload_service.dart';
 import 'package:spotiflac_android/widgets/batch_progress_dialog.dart';
 import 'package:spotiflac_android/widgets/re_enrich_field_dialog.dart';
@@ -1681,6 +1682,80 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
     }
   }
 
+  Future<void> _runBatchReplayGain(List<LocalLibraryItem> tracks) async {
+    final tracksById = {for (final t in tracks) t.id: t};
+    final selected = <LocalLibraryItem>[];
+    for (final id in _selectedIds) {
+      final item = tracksById[id];
+      if (item == null) continue;
+      selected.add(item);
+    }
+
+    if (selected.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.l10n.replayGainBatchConfirmTitle),
+        content: Text(
+          ctx.l10n.replayGainBatchConfirmMessage(selected.length),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(ctx.l10n.dialogCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(ctx.l10n.replayGainBatchConfirmTitle),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    var cancelled = false;
+    int successCount = 0;
+    final total = selected.length;
+
+    BatchProgressDialog.show(
+      context: context,
+      title: context.l10n.replayGainBatchAnalyzing,
+      total: total,
+      icon: Icons.graphic_eq,
+      onCancel: () {
+        cancelled = true;
+        BatchProgressDialog.dismiss(context);
+      },
+    );
+
+    for (int i = 0; i < total; i++) {
+      if (!mounted || cancelled) break;
+      final item = selected[i];
+      BatchProgressDialog.update(current: i + 1, detail: item.trackName);
+      try {
+        final ok = await ReplayGainService.applyToFile(item.filePath);
+        if (ok) successCount++;
+      } catch (_) {}
+    }
+
+    _exitSelectionMode();
+
+    if (!mounted) return;
+    if (!cancelled) {
+      BatchProgressDialog.dismiss(context);
+    }
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          context.l10n.replayGainBatchSuccess(successCount, total),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSelectionBottomBar(
     BuildContext context,
     ColorScheme colorScheme,
@@ -1778,22 +1853,26 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
               ),
               const SizedBox(height: 12),
 
-              Row(
-                children: [
-                  if (flacEligibleCount > 0) ...[
-                    Expanded(
-                      child: _LocalAlbumSelectionActionButton(
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  const spacing = 8.0;
+                  final itemWidth = (constraints.maxWidth - spacing) / 2;
+                  final actions = <Widget>[];
+
+                  if (flacEligibleCount > 0) {
+                    actions.add(
+                      _LocalAlbumSelectionActionButton(
                         icon: Icons.download_for_offline_outlined,
                         label:
                             '${context.l10n.queueFlacAction} ($flacEligibleCount)',
                         onPressed: () => _queueSelectedAsFlac(tracks),
                         colorScheme: colorScheme,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  Expanded(
-                    child: _LocalAlbumSelectionActionButton(
+                    );
+                  }
+
+                  actions.add(
+                    _LocalAlbumSelectionActionButton(
                       icon: Icons.auto_fix_high_outlined,
                       label: '${context.l10n.trackReEnrich} ($selectedCount)',
                       onPressed: selectedCount > 0
@@ -1801,10 +1880,10 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
                           : null,
                       colorScheme: colorScheme,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _LocalAlbumSelectionActionButton(
+                  );
+
+                  actions.add(
+                    _LocalAlbumSelectionActionButton(
                       icon: Icons.swap_horiz,
                       label: context.l10n.selectionConvertCount(selectedCount),
                       onPressed: selectedCount > 0
@@ -1812,8 +1891,30 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
                           : null,
                       colorScheme: colorScheme,
                     ),
-                  ),
-                ],
+                  );
+
+                  actions.add(
+                    _LocalAlbumSelectionActionButton(
+                      icon: Icons.graphic_eq,
+                      label: context.l10n.selectionReplayGainCount(
+                        selectedCount,
+                      ),
+                      onPressed: selectedCount > 0
+                          ? () => _runBatchReplayGain(tracks)
+                          : null,
+                      colorScheme: colorScheme,
+                    ),
+                  );
+
+                  return Wrap(
+                    spacing: spacing,
+                    runSpacing: spacing,
+                    children: [
+                      for (final action in actions)
+                        SizedBox(width: itemWidth, child: action),
+                    ],
+                  );
+                },
               ),
 
               const SizedBox(height: 8),

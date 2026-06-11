@@ -221,6 +221,7 @@ class LyricsSettingsPage extends ConsumerWidget {
     'youtube': 'YouTube',
     'kugou': 'Kugou',
     'genius': 'Genius',
+    'lyricsplus': 'LyricsPlus',
   };
 
   String _getLyricsProvidersSubtitle(

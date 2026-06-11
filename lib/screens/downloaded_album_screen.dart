@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/services/ffmpeg_service.dart';
+import 'package:spotiflac_android/services/replaygain_service.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/services/history_database.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
@@ -1412,6 +1413,80 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
     }
   }
 
+  Future<void> _runBatchReplayGain(List<DownloadHistoryItem> tracks) async {
+    final tracksById = {for (final t in tracks) t.id: t};
+    final selected = <DownloadHistoryItem>[];
+    for (final id in _selectedIds) {
+      final item = tracksById[id];
+      if (item == null) continue;
+      selected.add(item);
+    }
+
+    if (selected.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.l10n.replayGainBatchConfirmTitle),
+        content: Text(
+          ctx.l10n.replayGainBatchConfirmMessage(selected.length),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(ctx.l10n.dialogCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(ctx.l10n.replayGainBatchConfirmTitle),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    var cancelled = false;
+    int successCount = 0;
+    final total = selected.length;
+
+    BatchProgressDialog.show(
+      context: context,
+      title: context.l10n.replayGainBatchAnalyzing,
+      total: total,
+      icon: Icons.graphic_eq,
+      onCancel: () {
+        cancelled = true;
+        BatchProgressDialog.dismiss(context);
+      },
+    );
+
+    for (int i = 0; i < total; i++) {
+      if (!mounted || cancelled) break;
+      final item = selected[i];
+      BatchProgressDialog.update(current: i + 1, detail: item.trackName);
+      try {
+        final ok = await ReplayGainService.applyToFile(item.filePath);
+        if (ok) successCount++;
+      } catch (_) {}
+    }
+
+    _exitSelectionMode();
+
+    if (!mounted) return;
+    if (!cancelled) {
+      BatchProgressDialog.dismiss(context);
+    }
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          context.l10n.replayGainBatchSuccess(successCount, total),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSelectionBottomBar(
     BuildContext context,
     ColorScheme colorScheme,
@@ -1508,10 +1583,12 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
               ),
               const SizedBox(height: 12),
 
-              Row(
-                children: [
-                  Expanded(
-                    child: _DownloadedAlbumSelectionActionButton(
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  const spacing = 8.0;
+                  final itemWidth = (constraints.maxWidth - spacing) / 2;
+                  final actions = <Widget>[
+                    _DownloadedAlbumSelectionActionButton(
                       icon: Icons.share_outlined,
                       label: context.l10n.selectionShareCount(selectedCount),
                       onPressed: selectedCount > 0
@@ -1519,10 +1596,7 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
                           : null,
                       colorScheme: colorScheme,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _DownloadedAlbumSelectionActionButton(
+                    _DownloadedAlbumSelectionActionButton(
                       icon: Icons.swap_horiz,
                       label: context.l10n.selectionConvertCount(selectedCount),
                       onPressed: selectedCount > 0
@@ -1530,8 +1604,27 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
                           : null,
                       colorScheme: colorScheme,
                     ),
-                  ),
-                ],
+                    _DownloadedAlbumSelectionActionButton(
+                      icon: Icons.graphic_eq,
+                      label: context.l10n.selectionReplayGainCount(
+                        selectedCount,
+                      ),
+                      onPressed: selectedCount > 0
+                          ? () => _runBatchReplayGain(tracks)
+                          : null,
+                      colorScheme: colorScheme,
+                    ),
+                  ];
+
+                  return Wrap(
+                    spacing: spacing,
+                    runSpacing: spacing,
+                    children: [
+                      for (final action in actions)
+                        SizedBox(width: itemWidth, child: action),
+                    ],
+                  );
+                },
               ),
 
               const SizedBox(height: 8),

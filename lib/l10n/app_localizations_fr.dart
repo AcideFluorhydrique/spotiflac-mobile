@@ -192,6 +192,43 @@ class AppLocalizationsFr extends AppLocalizations {
       'Désactivé : aucune balise de normalisation du volume';
 
   @override
+  String get trackReplayGain => 'Rescan ReplayGain';
+
+  @override
+  String get trackReplayGainSubtitle =>
+      'Analyze loudness and write ReplayGain tags';
+
+  @override
+  String get trackReplayGainScanning => 'Analyzing loudness...';
+
+  @override
+  String get trackReplayGainSuccess => 'ReplayGain tags added';
+
+  @override
+  String get trackReplayGainFailed => 'Failed to add ReplayGain tags';
+
+  @override
+  String selectionReplayGainCount(int count) {
+    return 'ReplayGain ($count)';
+  }
+
+  @override
+  String get replayGainBatchConfirmTitle => 'Add ReplayGain';
+
+  @override
+  String replayGainBatchConfirmMessage(int count) {
+    return 'Analyze loudness and write ReplayGain tags to $count track(s)?';
+  }
+
+  @override
+  String get replayGainBatchAnalyzing => 'Analyzing ReplayGain...';
+
+  @override
+  String replayGainBatchSuccess(int success, int total) {
+    return 'ReplayGain added to $success of $total tracks';
+  }
+
+  @override
   String get optionsArtistTagMode => 'Mode « Artiste »';
 
   @override
@@ -2896,6 +2933,10 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get lyricsProviderQqMusicDesc =>
       'QQ Music (idéal pour écouter des titres chinois, via un proxy)';
+
+  @override
+  String get lyricsProviderLyricsPlusDesc =>
+      'Word-by-word karaoke lyrics (Apple/Musixmatch/Spotify/QQ, via proxy)';
 
   @override
   String get lyricsProviderExtensionDesc => 'Fournisseur d\'extensions';

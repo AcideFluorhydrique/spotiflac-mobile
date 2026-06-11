@@ -31,6 +31,7 @@ const (
 	LyricsProviderYouTube    = "youtube"
 	LyricsProviderKugou      = "kugou"
 	LyricsProviderGenius     = "genius"
+	LyricsProviderLyricsPlus = "lyricsplus"
 )
 
 var DefaultLyricsProviders = []string{
@@ -112,6 +113,7 @@ func SetLyricsProviderOrder(providers []string) {
 		LyricsProviderYouTube:    true,
 		LyricsProviderKugou:      true,
 		LyricsProviderGenius:     true,
+		LyricsProviderLyricsPlus: true,
 	}
 
 	var valid []string
@@ -151,6 +153,7 @@ func GetAvailableLyricsProviders() []map[string]interface{} {
 		{"id": LyricsProviderYouTube, "name": "YouTube", "has_proxy_dependency": true, "description": "YouTube lyrics"},
 		{"id": LyricsProviderKugou, "name": "Kugou", "has_proxy_dependency": true, "description": "Kugou lyrics"},
 		{"id": LyricsProviderGenius, "name": "Genius", "has_proxy_dependency": true, "description": "Genius lyrics"},
+		{"id": LyricsProviderLyricsPlus, "name": "LyricsPlus", "has_proxy_dependency": true, "description": "Word-by-word karaoke lyrics (Apple/Musixmatch/Spotify/QQ)"},
 	}
 }
 
@@ -610,6 +613,37 @@ func (c *LyricsClient) FetchLyricsAllSources(spotifyID, trackName, artistName st
 			}
 			if err != nil && simplifiedTrack != trackName {
 				lyrics, err = geniusClient.FetchLyrics(simplifiedTrack, primaryArtist, durationSec)
+			}
+
+		case LyricsProviderLyricsPlus:
+			lyricsPlusClient := NewLyricsPlusClient()
+			lyrics, err = lyricsPlusClient.FetchLyrics(
+				trackName,
+				primaryArtist,
+				"",
+				durationSec,
+				fetchOptions.MultiPersonWordByWord,
+				fetchOptions.AppleElrcWordSync,
+			)
+			if err != nil && primaryArtist != artistName {
+				lyrics, err = lyricsPlusClient.FetchLyrics(
+					trackName,
+					artistName,
+					"",
+					durationSec,
+					fetchOptions.MultiPersonWordByWord,
+					fetchOptions.AppleElrcWordSync,
+				)
+			}
+			if err != nil && simplifiedTrack != trackName {
+				lyrics, err = lyricsPlusClient.FetchLyrics(
+					simplifiedTrack,
+					primaryArtist,
+					"",
+					durationSec,
+					fetchOptions.MultiPersonWordByWord,
+					fetchOptions.AppleElrcWordSync,
+				)
 			}
 
 		default:

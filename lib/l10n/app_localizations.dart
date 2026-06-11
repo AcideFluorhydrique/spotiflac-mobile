@@ -458,6 +458,66 @@ abstract class AppLocalizations {
   /// **'Disabled: no loudness normalization tags'**
   String get optionsReplayGainSubtitleOff;
 
+  /// Three-dot menu option to scan loudness and write ReplayGain tags
+  ///
+  /// In en, this message translates to:
+  /// **'Rescan ReplayGain'**
+  String get trackReplayGain;
+
+  /// Subtitle for the rescan ReplayGain menu option
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze loudness and write ReplayGain tags'**
+  String get trackReplayGainSubtitle;
+
+  /// Snackbar/progress message while scanning ReplayGain for a single track
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing loudness...'**
+  String get trackReplayGainScanning;
+
+  /// Snackbar message after ReplayGain tags written for a single track
+  ///
+  /// In en, this message translates to:
+  /// **'ReplayGain tags added'**
+  String get trackReplayGainSuccess;
+
+  /// Snackbar message when ReplayGain scan/write fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to add ReplayGain tags'**
+  String get trackReplayGainFailed;
+
+  /// Batch selection action button label for ReplayGain
+  ///
+  /// In en, this message translates to:
+  /// **'ReplayGain ({count})'**
+  String selectionReplayGainCount(int count);
+
+  /// Title of the batch ReplayGain confirmation dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Add ReplayGain'**
+  String get replayGainBatchConfirmTitle;
+
+  /// Message of the batch ReplayGain confirmation dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze loudness and write ReplayGain tags to {count} track(s)?'**
+  String replayGainBatchConfirmMessage(int count);
+
+  /// Progress dialog title while batch scanning ReplayGain
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing ReplayGain...'**
+  String get replayGainBatchAnalyzing;
+
+  /// Snackbar after batch ReplayGain completes
+  ///
+  /// In en, this message translates to:
+  /// **'ReplayGain added to {success} of {total} tracks'**
+  String replayGainBatchSuccess(int success, int total);
+
   /// Setting title for how artist metadata is written into files
   ///
   /// In en, this message translates to:
@@ -4884,6 +4944,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'QQ Music (good for Chinese songs, via proxy)'**
   String get lyricsProviderQqMusicDesc;
+
+  /// Description for LyricsPlus provider
+  ///
+  /// In en, this message translates to:
+  /// **'Word-by-word karaoke lyrics (Apple/Musixmatch/Spotify/QQ, via proxy)'**
+  String get lyricsProviderLyricsPlusDesc;
 
   /// Generic description for extension-based lyrics providers
   ///

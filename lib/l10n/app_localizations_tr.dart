@@ -191,6 +191,43 @@ class AppLocalizationsTr extends AppLocalizations {
       'Devre dışı: Ses normalleştirme etiketi yok';
 
   @override
+  String get trackReplayGain => 'Rescan ReplayGain';
+
+  @override
+  String get trackReplayGainSubtitle =>
+      'Analyze loudness and write ReplayGain tags';
+
+  @override
+  String get trackReplayGainScanning => 'Analyzing loudness...';
+
+  @override
+  String get trackReplayGainSuccess => 'ReplayGain tags added';
+
+  @override
+  String get trackReplayGainFailed => 'Failed to add ReplayGain tags';
+
+  @override
+  String selectionReplayGainCount(int count) {
+    return 'ReplayGain ($count)';
+  }
+
+  @override
+  String get replayGainBatchConfirmTitle => 'Add ReplayGain';
+
+  @override
+  String replayGainBatchConfirmMessage(int count) {
+    return 'Analyze loudness and write ReplayGain tags to $count track(s)?';
+  }
+
+  @override
+  String get replayGainBatchAnalyzing => 'Analyzing ReplayGain...';
+
+  @override
+  String replayGainBatchSuccess(int success, int total) {
+    return 'ReplayGain added to $success of $total tracks';
+  }
+
+  @override
   String get optionsArtistTagMode => 'Sanatçı Etiketi Modu';
 
   @override
@@ -2849,6 +2886,10 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get lyricsProviderQqMusicDesc =>
       'QQ Music (good for Chinese songs, via proxy)';
+
+  @override
+  String get lyricsProviderLyricsPlusDesc =>
+      'Word-by-word karaoke lyrics (Apple/Musixmatch/Spotify/QQ, via proxy)';
 
   @override
   String get lyricsProviderExtensionDesc => 'Extension provider';

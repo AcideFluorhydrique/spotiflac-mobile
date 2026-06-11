@@ -16,6 +16,7 @@ import 'package:spotiflac_android/providers/playback_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/services/ffmpeg_service.dart';
+import 'package:spotiflac_android/services/replaygain_service.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/utils/audio_conversion_utils.dart';
 import 'package:spotiflac_android/utils/logger.dart';
@@ -3259,134 +3260,194 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
     showModalBottomSheet<void>(
       context: screenContext,
       useRootNavigator: true,
+      backgroundColor: colorScheme.surfaceContainerHigh,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       isScrollControlled: true,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(screenContext).size.height * 0.7,
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 8),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.copy),
-                title: Text(sheetContext.l10n.trackCopyFilePath),
-                onTap: () {
-                  _closeOptionsMenuAndRun(
-                    sheetContext,
-                    () => _copyToClipboard(screenContext, cleanFilePath),
-                  );
-                },
-              ),
-              if (_fileExists)
-                ListTile(
-                  leading: const Icon(Icons.edit_outlined),
-                  title: Text(sheetContext.l10n.trackEditMetadata),
-                  onTap: () {
-                    _closeOptionsMenuAndRun(
-                      sheetContext,
-                      () => _showEditMetadataSheet(
-                        screenContext,
-                        ref,
-                        colorScheme,
-                      ),
-                    );
-                  },
-                ),
-              if (!_isLocalItem && (_coverUrl != null || _fileExists))
-                ListTile(
-                  leading: const Icon(Icons.image_outlined),
-                  title: Text(sheetContext.l10n.trackSaveCoverArt),
-                  subtitle: Text(sheetContext.l10n.trackSaveCoverArtSubtitle),
-                  onTap: () {
-                    _closeOptionsMenuAndRun(sheetContext, _saveCoverArt);
-                  },
-                ),
-              if (!_isLocalItem)
-                ListTile(
-                  leading: const Icon(Icons.lyrics_outlined),
-                  title: Text(sheetContext.l10n.trackSaveLyrics),
-                  subtitle: Text(sheetContext.l10n.trackSaveLyricsSubtitle),
-                  onTap: () {
-                    _closeOptionsMenuAndRun(sheetContext, _saveLyrics);
-                  },
-                ),
-              if (_fileExists)
-                ListTile(
-                  leading: const Icon(Icons.travel_explore),
-                  title: Text(sheetContext.l10n.trackReEnrich),
-                  subtitle: Text(sheetContext.l10n.trackReEnrichOnlineSubtitle),
-                  onTap: () {
-                    _closeOptionsMenuAndRun(sheetContext, _reEnrichMetadata);
-                  },
-                ),
-              if (_fileExists && _isConvertibleFormat)
-                ListTile(
-                  leading: const Icon(Icons.swap_horiz),
-                  title: Text(sheetContext.l10n.trackConvertFormat),
-                  subtitle: Text(sheetContext.l10n.trackConvertFormatSubtitle),
-                  onTap: () {
-                    _closeOptionsMenuAndRun(
-                      sheetContext,
-                      () => _showConvertSheet(screenContext),
-                    );
-                  },
-                ),
-              if (_fileExists && _isCueFile)
-                ListTile(
-                  leading: const Icon(Icons.call_split),
-                  title: Text(sheetContext.l10n.cueSplitTitle),
-                  subtitle: Text(sheetContext.l10n.cueSplitSubtitle),
-                  onTap: () {
-                    _closeOptionsMenuAndRun(
-                      sheetContext,
-                      () => _showCueSplitSheet(screenContext),
-                    );
-                  },
-                ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.share),
-                title: Text(sheetContext.l10n.trackMetadataShare),
-                onTap: () {
-                  _closeOptionsMenuAndRun(
-                    sheetContext,
-                    () => _shareFile(screenContext),
-                  );
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.delete, color: colorScheme.error),
-                title: Text(
-                  sheetContext.l10n.trackRemoveFromDevice,
-                  style: TextStyle(color: colorScheme.error),
-                ),
-                onTap: () {
-                  _closeOptionsMenuAndRun(
-                    sheetContext,
-                    () => _confirmDelete(screenContext, ref, colorScheme),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
+      builder: (sheetContext) {
+        final l10n = sheetContext.l10n;
+
+        final options = <_MetadataOption>[
+          _MetadataOption(
+            icon: Icons.copy_outlined,
+            label: l10n.trackCopyFilePath,
+            onTap: () => _copyToClipboard(screenContext, cleanFilePath),
           ),
-        ),
-      ),
+          if (_fileExists)
+            _MetadataOption(
+              icon: Icons.edit_outlined,
+              label: l10n.trackEditMetadata,
+              onTap: () =>
+                  _showEditMetadataSheet(screenContext, ref, colorScheme),
+            ),
+          if (!_isLocalItem && (_coverUrl != null || _fileExists))
+            _MetadataOption(
+              icon: Icons.image_outlined,
+              label: l10n.trackSaveCoverArt,
+              onTap: _saveCoverArt,
+            ),
+          if (!_isLocalItem)
+            _MetadataOption(
+              icon: Icons.lyrics_outlined,
+              label: l10n.trackSaveLyrics,
+              onTap: _saveLyrics,
+            ),
+          if (_fileExists)
+            _MetadataOption(
+              icon: Icons.travel_explore,
+              label: l10n.trackReEnrich,
+              onTap: _reEnrichMetadata,
+            ),
+          if (_fileExists && _isConvertibleFormat)
+            _MetadataOption(
+              icon: Icons.swap_horiz,
+              label: l10n.trackConvertFormat,
+              onTap: () => _showConvertSheet(screenContext),
+            ),
+          if (_fileExists && !_isCueFile)
+            _MetadataOption(
+              icon: Icons.graphic_eq,
+              label: l10n.trackReplayGain,
+              onTap: () => _rescanReplayGain(),
+            ),
+          if (_fileExists && _isCueFile)
+            _MetadataOption(
+              icon: Icons.call_split,
+              label: l10n.cueSplitTitle,
+              onTap: () => _showCueSplitSheet(screenContext),
+            ),
+          _MetadataOption(
+            icon: Icons.share_outlined,
+            label: l10n.trackMetadataShare,
+            onTap: () => _shareFile(screenContext),
+          ),
+          _MetadataOption(
+            icon: Icons.delete_outline,
+            label: l10n.trackRemoveFromDevice,
+            destructive: true,
+            onTap: () => _confirmDelete(screenContext, ref, colorScheme),
+          ),
+        ];
+
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(sheetContext).size.height * 0.85,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.4,
+                        ),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: _buildOptionsHeaderCover(colorScheme),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                trackName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(sheetContext)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                artistName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(sheetContext)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Divider(
+                    height: 1,
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: 4),
+                  for (final option in options)
+                    _MetadataOptionTile(
+                      option: option,
+                      colorScheme: colorScheme,
+                      onTap: () =>
+                          _closeOptionsMenuAndRun(sheetContext, option.onTap),
+                    ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
+  }
+
+  Widget _buildOptionsHeaderCover(ColorScheme colorScheme) {
+    const size = 56.0;
+    const cacheWidth = 112;
+
+    Widget placeholder() => Container(
+      width: size,
+      height: size,
+      color: colorScheme.surfaceContainerHighest,
+      child: Icon(Icons.music_note, color: colorScheme.onSurfaceVariant),
+    );
+
+    if (_coverUrl != null) {
+      return CachedCoverImage(
+        imageUrl: _coverUrl!,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        memCacheWidth: cacheWidth,
+        errorWidget: (_, _, _) => placeholder(),
+      );
+    }
+
+    if (_localCoverPath != null && _localCoverPath!.isNotEmpty) {
+      return Image.file(
+        File(_localCoverPath!),
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        cacheWidth: cacheWidth,
+        errorBuilder: (_, _, _) => placeholder(),
+      );
+    }
+
+    return placeholder();
   }
 
   /// Whether the current file format supports conversion
@@ -3570,6 +3631,35 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
       return normalized.split('/').last;
     }
     return normalized;
+  }
+
+  Future<void> _rescanReplayGain() async {
+    if (!_fileExists) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(context.l10n.trackReplayGainScanning),
+        duration: const Duration(seconds: 30),
+      ),
+    );
+    bool ok = false;
+    try {
+      ok = await ReplayGainService.applyToFile(cleanFilePath);
+    } catch (e) {
+      _log.w('ReplayGain rescan failed: $e');
+    }
+    if (!mounted) return;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? context.l10n.trackReplayGainSuccess
+              : context.l10n.trackReplayGainFailed,
+        ),
+      ),
+    );
   }
 
   void _showConvertSheet(BuildContext context) {
@@ -4857,5 +4947,59 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
       default:
         return colorScheme.primary;
     }
+  }
+}
+
+class _MetadataOption {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool destructive;
+
+  const _MetadataOption({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.destructive = false,
+  });
+}
+
+class _MetadataOptionTile extends StatelessWidget {
+  final _MetadataOption option;
+  final ColorScheme colorScheme;
+  final VoidCallback onTap;
+
+  const _MetadataOptionTile({
+    required this.option,
+    required this.colorScheme,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final boxColor = option.destructive
+        ? colorScheme.errorContainer
+        : colorScheme.primaryContainer;
+    final iconColor = option.destructive
+        ? colorScheme.onErrorContainer
+        : colorScheme.onPrimaryContainer;
+    final titleColor = option.destructive ? colorScheme.error : null;
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: boxColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(option.icon, color: iconColor, size: 20),
+      ),
+      title: Text(
+        option.label,
+        style: TextStyle(fontWeight: FontWeight.w500, color: titleColor),
+      ),
+      onTap: onTap,
+    );
   }
 }

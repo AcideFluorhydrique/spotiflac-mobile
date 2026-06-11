@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:spotiflac_android/services/ffmpeg_service.dart';
+import 'package:spotiflac_android/services/replaygain_service.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/utils/app_bar_layout.dart';
@@ -5421,6 +5422,95 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     }
   }
 
+  /// Batch-scan loudness and write ReplayGain tags to the selected tracks.
+  Future<void> _runBatchReplayGain(
+    List<UnifiedLibraryItem> allItems,
+  ) async {
+    final itemsById = {for (final item in allItems) item.id: item};
+    final selectedItems = <UnifiedLibraryItem>[];
+    for (final id in _selectedIds) {
+      final item = itemsById[id];
+      if (item == null) continue;
+      selectedItems.add(item);
+    }
+
+    if (selectedItems.isEmpty) return;
+
+    _hideSelectionOverlay();
+    _hidePlaylistSelectionOverlay();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.l10n.replayGainBatchConfirmTitle),
+        content: Text(
+          ctx.l10n.replayGainBatchConfirmMessage(selectedItems.length),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(ctx.l10n.dialogCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(ctx.l10n.replayGainBatchConfirmTitle),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) return;
+    if (confirmed != true) {
+      if (_isSelectionMode) {
+        _syncSelectionOverlay(
+          items: allItems,
+          bottomPadding: MediaQuery.of(context).padding.bottom,
+        );
+      }
+      return;
+    }
+
+    var cancelled = false;
+    int successCount = 0;
+    final total = selectedItems.length;
+
+    BatchProgressDialog.show(
+      context: context,
+      title: context.l10n.replayGainBatchAnalyzing,
+      total: total,
+      icon: Icons.graphic_eq,
+      onCancel: () {
+        cancelled = true;
+        BatchProgressDialog.dismiss(context);
+      },
+    );
+
+    for (int i = 0; i < total; i++) {
+      if (!mounted || cancelled) break;
+      final item = selectedItems[i];
+      BatchProgressDialog.update(current: i + 1, detail: item.trackName);
+      try {
+        final ok = await ReplayGainService.applyToFile(item.filePath);
+        if (ok) successCount++;
+      } catch (_) {}
+    }
+
+    _exitSelectionMode();
+
+    if (!mounted) return;
+    if (!cancelled) {
+      BatchProgressDialog.dismiss(context);
+    }
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          context.l10n.replayGainBatchSuccess(successCount, total),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSelectionBottomBar(
     BuildContext context,
     ColorScheme colorScheme,
@@ -5524,11 +5614,15 @@ class _QueueTabState extends ConsumerState<QueueTab> {
 
               const SizedBox(height: 12),
 
-              Row(
-                children: [
-                  if (localOnlySelection && flacEligibleCount > 0) ...[
-                    Expanded(
-                      child: _SelectionActionButton(
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  const spacing = 8.0;
+                  final itemWidth = (constraints.maxWidth - spacing) / 2;
+                  final actions = <Widget>[];
+
+                  if (localOnlySelection && flacEligibleCount > 0) {
+                    actions.add(
+                      _SelectionActionButton(
                         icon: Icons.download_for_offline_outlined,
                         label:
                             '${context.l10n.queueFlacAction} ($flacEligibleCount)',
@@ -5536,11 +5630,11 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                             _queueSelectedLocalAsFlac(unifiedItems),
                         colorScheme: colorScheme,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  Expanded(
-                    child: _SelectionActionButton(
+                    );
+                  }
+
+                  actions.add(
+                    _SelectionActionButton(
                       icon: localOnlySelection
                           ? Icons.auto_fix_high_outlined
                           : Icons.share_outlined,
@@ -5554,10 +5648,10 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                           : null,
                       colorScheme: colorScheme,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _SelectionActionButton(
+                  );
+
+                  actions.add(
+                    _SelectionActionButton(
                       icon: Icons.swap_horiz,
                       label: context.l10n.selectionConvertCount(selectedCount),
                       onPressed: selectedCount > 0
@@ -5565,8 +5659,30 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                           : null,
                       colorScheme: colorScheme,
                     ),
-                  ),
-                ],
+                  );
+
+                  actions.add(
+                    _SelectionActionButton(
+                      icon: Icons.graphic_eq,
+                      label: context.l10n.selectionReplayGainCount(
+                        selectedCount,
+                      ),
+                      onPressed: selectedCount > 0
+                          ? () => _runBatchReplayGain(unifiedItems)
+                          : null,
+                      colorScheme: colorScheme,
+                    ),
+                  );
+
+                  return Wrap(
+                    spacing: spacing,
+                    runSpacing: spacing,
+                    children: [
+                      for (final action in actions)
+                        SizedBox(width: itemWidth, child: action),
+                    ],
+                  );
+                },
               ),
 
               const SizedBox(height: 8),

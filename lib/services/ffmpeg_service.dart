@@ -1292,6 +1292,71 @@ class FFmpegService {
     return false;
   }
 
+  /// Write track ReplayGain tags to a file via FFmpeg, replacing it in place.
+  ///
+  /// Used for formats that are not handled by the native tag writers
+  /// (MP3/Opus). All existing streams and metadata are preserved via
+  /// `-map 0 -c copy -map_metadata 0`; only the REPLAYGAIN_TRACK_* fields are
+  /// added/overwritten. Returns `true` when the file was rewritten in place.
+  static Future<bool> writeTrackReplayGainTags(
+    String filePath,
+    String trackGain,
+    String trackPeak,
+  ) async {
+    final ext = filePath.contains('.')
+        ? '.${filePath.split('.').last}'
+        : '.tmp';
+    final tempDir = await getTemporaryDirectory();
+    final tempOutput = _nextTempEmbedPath(tempDir.path, ext);
+    final arguments = <String>[
+      '-v',
+      'error',
+      '-hide_banner',
+      '-i',
+      filePath,
+      '-map',
+      '0',
+      '-c',
+      'copy',
+      '-map_metadata',
+      '0',
+      '-metadata',
+      'REPLAYGAIN_TRACK_GAIN=$trackGain',
+      '-metadata',
+      'REPLAYGAIN_TRACK_PEAK=$trackPeak',
+      tempOutput,
+      '-y',
+    ];
+
+    _log.d('Writing track ReplayGain tags via FFmpeg');
+    final result = await _executeWithArguments(arguments);
+
+    if (result.success) {
+      try {
+        final tempFile = File(tempOutput);
+        if (await tempFile.exists()) {
+          final originalFile = File(filePath);
+          if (await originalFile.exists()) {
+            await originalFile.delete();
+          }
+          await tempFile.copy(filePath);
+          await tempFile.delete();
+          _log.d('Track ReplayGain tags written successfully');
+          return true;
+        }
+      } catch (e) {
+        _log.w('Failed to replace file with track ReplayGain: $e');
+      }
+    }
+
+    try {
+      final tempFile = File(tempOutput);
+      if (await tempFile.exists()) await tempFile.delete();
+    } catch (_) {}
+
+    return false;
+  }
+
   static Future<String?> embedMetadata({
     required String flacPath,
     String? coverPath,
