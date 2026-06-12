@@ -6676,6 +6676,13 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       }
     }
 
+    // iOS has no foreground service; request a background execution window so
+    // an in-flight download can keep running for a short time after the app is
+    // backgrounded instead of being suspended immediately.
+    if (Platform.isIOS && _totalQueuedAtStart > 0) {
+      await PlatformBridge.beginBackgroundDownloadTask();
+    }
+
     if (!isSafMode && state.outputDir.isEmpty) {
       _log.d('Output dir empty, initializing...');
       await _initOutputDir();
@@ -6792,6 +6799,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       } catch (e) {
         _log.e('Failed to stop foreground service: $e');
       }
+    }
+
+    if (Platform.isIOS) {
+      await PlatformBridge.endBackgroundDownloadTask();
     }
 
     if (_downloadCount > 0) {

@@ -20,6 +20,14 @@ import Gobackend  // Import Go framework
     
     /// Currently accessed security-scoped URL for library folder
     private var activeSecurityScopedURL: URL?
+
+    /// Whether a download queue is currently active. When true, the app begins a
+    /// fresh background task each time it enters the background so an in-flight
+    /// download keeps running for the limited window iOS allows. iOS has no
+    /// foreground-service equivalent, so this is best-effort. Only touched on the
+    /// main thread.
+    private var downloadsActive = false
+    private var downloadBackgroundTask: UIBackgroundTaskIdentifier = .invalid
     
     override func application(
         _ application: UIApplication,
@@ -233,6 +241,25 @@ import Gobackend  // Import Go framework
     }
     
     private func handleMethodCall(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        // Background-task management must run on the main thread and does not
+        // touch the Go backend, so handle it directly without dispatching.
+        switch call.method {
+        case "beginBackgroundDownloadTask":
+            // Queue started: remember it so we extend background time whenever
+            // the app is backgrounded while downloads run.
+            downloadsActive = true
+            result(nil)
+            return
+        case "endBackgroundDownloadTask":
+            // Queue finished/paused: stop extending background time.
+            downloadsActive = false
+            endBackgroundDownloadTask()
+            result(nil)
+            return
+        default:
+            break
+        }
+
         DispatchQueue.global(qos: .userInitiated).async {
             do {
                 let response = try self.invokeGoMethod(call: call)
@@ -244,6 +271,39 @@ import Gobackend  // Import Go framework
                     result(FlutterError(code: "ERROR", message: error.localizedDescription, details: nil))
                 }
             }
+        }
+    }
+
+    override func applicationDidEnterBackground(_ application: UIApplication) {
+        super.applicationDidEnterBackground(application)
+        if downloadsActive {
+            beginBackgroundDownloadTask()
+        }
+    }
+
+    override func applicationWillEnterForeground(_ application: UIApplication) {
+        super.applicationWillEnterForeground(application)
+        // No background-time countdown while in the foreground.
+        endBackgroundDownloadTask()
+    }
+
+    /// Begins a background task (if one is not already active) so an in-flight
+    /// download keeps running for the limited window iOS allows after the app is
+    /// backgrounded. The expiration handler ends the task to avoid the app being
+    /// force-terminated by the watchdog. Must run on the main thread.
+    private func beginBackgroundDownloadTask() {
+        if downloadBackgroundTask != .invalid { return }
+        downloadBackgroundTask = UIApplication.shared.beginBackgroundTask(
+            withName: "SpotiFLACDownloads"
+        ) { [weak self] in
+            self?.endBackgroundDownloadTask()
+        }
+    }
+
+    private func endBackgroundDownloadTask() {
+        if downloadBackgroundTask != .invalid {
+            UIApplication.shared.endBackgroundTask(downloadBackgroundTask)
+            downloadBackgroundTask = .invalid
         }
     }
     

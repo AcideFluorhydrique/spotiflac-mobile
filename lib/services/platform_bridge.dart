@@ -865,6 +865,26 @@ class PlatformBridge {
     return result as bool;
   }
 
+  /// iOS only: mark that a download queue is active so the app keeps in-flight
+  /// downloads running for a short window whenever it is backgrounded. iOS
+  /// grants a limited budget (roughly 30s on modern versions) per background
+  /// entry; there is no foreground-service equivalent, so this is best-effort.
+  static Future<void> beginBackgroundDownloadTask() async {
+    if (!Platform.isIOS) return;
+    try {
+      await _channel.invokeMethod('beginBackgroundDownloadTask');
+    } catch (_) {}
+  }
+
+  /// iOS only: mark that the download queue is no longer active (queue finished
+  /// or paused), stopping background-time extension.
+  static Future<void> endBackgroundDownloadTask() async {
+    if (!Platform.isIOS) return;
+    try {
+      await _channel.invokeMethod('endBackgroundDownloadTask');
+    } catch (_) {}
+  }
+
   static Future<void> startNativeDownloadWorker({
     required List<Map<String, dynamic>> requests,
     Map<String, dynamic> settings = const {},

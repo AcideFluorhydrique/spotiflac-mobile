@@ -118,7 +118,13 @@ func (ext *loadedExtension) lockReadyVM() (*goja.Runtime, error) {
 }
 
 type extensionManager struct {
-	mu            sync.RWMutex
+	mu sync.RWMutex
+	// mutationMu serializes heavy mutating operations (install / upgrade /
+	// remove). These tear down and re-extract files and rebuild goja VMs;
+	// running two at once (e.g. updating two extensions simultaneously) races
+	// the non-thread-safe goja runtime and can hard-crash the process. Always
+	// acquired before m.mu; internal "*Locked" helpers assume it is held.
+	mutationMu    sync.Mutex
 	extensions    map[string]*loadedExtension
 	extensionsDir string
 	dataDir       string
@@ -156,6 +162,12 @@ func (m *extensionManager) SetDirectories(extensionsDir, dataDir string) error {
 }
 
 func (m *extensionManager) LoadExtensionFromFile(filePath string) (*loadedExtension, error) {
+	m.mutationMu.Lock()
+	defer m.mutationMu.Unlock()
+	return m.loadExtensionFromFileLocked(filePath)
+}
+
+func (m *extensionManager) loadExtensionFromFileLocked(filePath string) (*loadedExtension, error) {
 	if !strings.HasSuffix(strings.ToLower(filePath), ".spotiflac-ext") {
 		return nil, fmt.Errorf("invalid file format: please select a .spotiflac-ext file")
 	}
@@ -212,7 +224,7 @@ func (m *extensionManager) LoadExtensionFromFile(filePath string) (*loadedExtens
 	if exists {
 		versionCompare := compareVersions(manifest.Version, existingVersion)
 		if versionCompare > 0 {
-			return m.UpgradeExtension(filePath)
+			return m.upgradeExtensionLocked(filePath)
 		} else if versionCompare == 0 {
 			return nil, fmt.Errorf("extension '%s' v%s is already installed", existingDisplayName, existingVersion)
 		} else {
@@ -736,6 +748,9 @@ func (m *extensionManager) loadExtensionFromDirectory(dirPath string) (*loadedEx
 }
 
 func (m *extensionManager) RemoveExtension(extensionID string) error {
+	m.mutationMu.Lock()
+	defer m.mutationMu.Unlock()
+
 	ext, err := m.GetExtension(extensionID)
 	if err != nil {
 		return err
@@ -756,6 +771,12 @@ func (m *extensionManager) RemoveExtension(extensionID string) error {
 
 // Only allows upgrades (new version > current version), not downgrades
 func (m *extensionManager) UpgradeExtension(filePath string) (*loadedExtension, error) {
+	m.mutationMu.Lock()
+	defer m.mutationMu.Unlock()
+	return m.upgradeExtensionLocked(filePath)
+}
+
+func (m *extensionManager) upgradeExtensionLocked(filePath string) (*loadedExtension, error) {
 	if !strings.HasSuffix(strings.ToLower(filePath), ".spotiflac-ext") {
 		return nil, fmt.Errorf("invalid file format: please select a .spotiflac-ext file")
 	}

@@ -15,20 +15,45 @@ import 'package:spotiflac_android/services/notification_service.dart';
 import 'package:spotiflac_android/services/share_intent_service.dart';
 import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/utils/local_library_scan_prefs.dart';
+import 'package:spotiflac_android/utils/logger.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  final runtimeProfile = await _resolveRuntimeProfile();
-  _configureImageCache(runtimeProfile);
+final _log = AppLogger('Main');
 
-  runApp(
-    ProviderScope(
-      child: _EagerInitialization(
-        child: SpotiFLACApp(
-          disableOverscrollEffects: runtimeProfile.disableOverscrollEffects,
+void main() {
+  // Catch uncaught errors so a failure in a provider/async path (e.g. a
+  // misbehaving extension request) is logged instead of taking the whole app
+  // down. Native (Go) fatal crashes can't be caught here, but Dart-side ones
+  // can.
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+
+      final previousOnError = FlutterError.onError;
+      FlutterError.onError = (details) {
+        previousOnError?.call(details);
+        _log.e('Uncaught Flutter error: ${details.exceptionAsString()}');
+      };
+      WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
+        _log.e('Uncaught platform error: $error');
+        return true;
+      };
+
+      final runtimeProfile = await _resolveRuntimeProfile();
+      _configureImageCache(runtimeProfile);
+
+      runApp(
+        ProviderScope(
+          child: _EagerInitialization(
+            child: SpotiFLACApp(
+              disableOverscrollEffects: runtimeProfile.disableOverscrollEffects,
+            ),
+          ),
         ),
-      ),
-    ),
+      );
+    },
+    (error, stack) {
+      _log.e('Uncaught zone error: $error');
+    },
   );
 }
 

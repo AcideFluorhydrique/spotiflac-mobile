@@ -4849,6 +4849,14 @@ class _QueueTabState extends ConsumerState<QueueTab> {
 
     var didStartConversion = false;
 
+    // Resolve localized strings up front: the builder closure must not look up
+    // Localizations via the outer (State) context, which may be deactivated by
+    // the time the root-navigator sheet rebuilds.
+    final sheetTitle = context.l10n.selectionBatchConvertConfirmTitle;
+    final sheetConfirmLabel = context.l10n.selectionConvertCount(
+      _selectedIds.length,
+    );
+
     _suppressSelectionOverlay = true;
     _hideSelectionOverlay();
     _hidePlaylistSelectionOverlay();
@@ -4861,8 +4869,8 @@ class _QueueTabState extends ConsumerState<QueueTab> {
       ),
       builder: (sheetContext) => BatchConvertSheet(
         formats: formats,
-        title: context.l10n.selectionBatchConvertConfirmTitle,
-        confirmLabel: context.l10n.selectionConvertCount(_selectedIds.length),
+        title: sheetTitle,
+        confirmLabel: sheetConfirmLabel,
         onConvert: (format, bitrate) {
           didStartConversion = true;
           Navigator.pop(sheetContext);

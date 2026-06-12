@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spotiflac_android/constants/app_info.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
@@ -205,6 +206,24 @@ class StoreState {
 }
 
 class StoreNotifier extends Notifier<StoreState> {
+  /// Serializes extension install/upgrade operations. Running two of these at
+  /// once (e.g. updating two extensions simultaneously) races the native
+  /// extension manager's goja VM teardown/reload and can hard-crash the app, so
+  /// they must run strictly one at a time.
+  Future<void> _mutationChain = Future<void>.value();
+
+  Future<T> _runSerialized<T>(Future<T> Function() action) {
+    final completer = Completer<T>();
+    _mutationChain = _mutationChain.then((_) async {
+      try {
+        completer.complete(await action());
+      } catch (e, st) {
+        completer.completeError(e, st);
+      }
+    });
+    return completer.future;
+  }
+
   @override
   StoreState build() {
     return const StoreState();
@@ -330,6 +349,16 @@ class StoreNotifier extends Notifier<StoreState> {
     String extensionId,
     String tempDir,
     String extensionsDir,
+  ) {
+    return _runSerialized(
+      () => _installExtensionInternal(extensionId, tempDir, extensionsDir),
+    );
+  }
+
+  Future<bool> _installExtensionInternal(
+    String extensionId,
+    String tempDir,
+    String extensionsDir,
   ) async {
     state = state.copyWith(
       isDownloading: true,
@@ -366,7 +395,16 @@ class StoreNotifier extends Notifier<StoreState> {
     }
   }
 
-  Future<bool> updateExtension(String extensionId, String tempDir) async {
+  Future<bool> updateExtension(String extensionId, String tempDir) {
+    return _runSerialized(
+      () => _updateExtensionInternal(extensionId, tempDir),
+    );
+  }
+
+  Future<bool> _updateExtensionInternal(
+    String extensionId,
+    String tempDir,
+  ) async {
     state = state.copyWith(
       isDownloading: true,
       downloadingId: extensionId,

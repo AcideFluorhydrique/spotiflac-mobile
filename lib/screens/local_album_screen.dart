@@ -1216,6 +1216,11 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
 
     if (formats.isEmpty) return;
 
+    final sheetTitle = context.l10n.selectionBatchConvertConfirmTitle;
+    final sheetConfirmLabel = context.l10n.selectionConvertCount(
+      _selectedIds.length,
+    );
+
     showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
@@ -1224,8 +1229,8 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
       ),
       builder: (sheetContext) => BatchConvertSheet(
         formats: formats,
-        title: context.l10n.selectionBatchConvertConfirmTitle,
-        confirmLabel: context.l10n.selectionConvertCount(_selectedIds.length),
+        title: sheetTitle,
+        confirmLabel: sheetConfirmLabel,
         onConvert: (format, bitrate) {
           Navigator.pop(sheetContext);
           _performBatchConversion(
