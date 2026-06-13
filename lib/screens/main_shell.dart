@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show ImageFilter;
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -549,6 +550,7 @@ class _MainShellState extends ConsumerState<MainShell>
         return true;
       },
       child: Scaffold(
+        extendBody: true,
         body: AnimatedBuilder(
           animation: _tabJumpTransitionController,
           child: PageView.builder(
@@ -571,23 +573,31 @@ class _MainShellState extends ConsumerState<MainShell>
             );
           },
         ),
-        bottomNavigationBar: DecoratedBox(
-          position: DecorationPosition.foreground,
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(
-                color: Theme.of(
+        bottomNavigationBar: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: DecoratedBox(
+              position: DecorationPosition.foreground,
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+              child: NavigationBar(
+                selectedIndex: _currentIndex.clamp(0, maxIndex),
+                onDestinationSelected: _onNavTap,
+                animationDuration: const Duration(milliseconds: 500),
+                elevation: 0,
+                backgroundColor: settingsGroupColor(
                   context,
-                ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                ).withValues(alpha: 0.72),
+                destinations: destinations,
               ),
             ),
-          ),
-          child: NavigationBar(
-            selectedIndex: _currentIndex.clamp(0, maxIndex),
-            onDestinationSelected: _onNavTap,
-            animationDuration: const Duration(milliseconds: 500),
-            backgroundColor: settingsGroupColor(context),
-            destinations: destinations,
           ),
         ),
       ),
