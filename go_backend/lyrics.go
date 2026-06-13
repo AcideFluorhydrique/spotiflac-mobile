@@ -877,6 +877,41 @@ func msToLRCTimestampInline(ms int64) string {
 	return fmt.Sprintf("%02d:%02d.%02d", minutes, seconds, centiseconds)
 }
 
+// extractLyricsSourceFromLRC reads the provider recorded in the LRC [by:] tag,
+// e.g. "[by:SpotiFLAC-Mobile (source: LRCLIB)]". Returns "" when absent.
+const lrcSourceMarker = "(source: "
+
+func lyricsSourceUsesPaxsenix(source string) bool {
+	s := strings.ToLower(strings.TrimSpace(source))
+	if s == "" {
+		return false
+	}
+	if strings.HasPrefix(s, "lrclib") ||
+		strings.HasPrefix(s, "extension:") ||
+		strings.HasPrefix(s, "heuristic") {
+		return false
+	}
+	return true
+}
+
+func extractLyricsSourceFromLRC(lrc string) string {
+	for _, line := range strings.Split(lrc, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(strings.ToLower(trimmed), "[by:") {
+			continue
+		}
+		idx := strings.Index(trimmed, lrcSourceMarker)
+		if idx < 0 {
+			return ""
+		}
+		rest := strings.TrimSpace(trimmed[idx+len(lrcSourceMarker):])
+		rest = strings.TrimSuffix(rest, "]")
+		rest = strings.TrimSuffix(rest, ")")
+		return strings.TrimSpace(rest)
+	}
+	return ""
+}
+
 func convertToLRCWithMetadata(lyrics *LyricsResponse, trackName, artistName string) string {
 	if lyrics == nil || len(lyrics.Lines) == 0 {
 		return ""
@@ -886,7 +921,21 @@ func convertToLRCWithMetadata(lyrics *LyricsResponse, trackName, artistName stri
 
 	builder.WriteString(fmt.Sprintf("[ti:%s]\n", trackName))
 	builder.WriteString(fmt.Sprintf("[ar:%s]\n", artistName))
-	builder.WriteString("[by:Implemented by SpotiFLAC-Mobile using Paxsenix API]\n")
+	source := strings.TrimSpace(lyrics.Source)
+	if source == "" {
+		source = strings.TrimSpace(lyrics.Provider)
+	}
+	credit := "SpotiFLAC-Mobile"
+	if lyricsSourceUsesPaxsenix(source) {
+		credit = "SpotiFLAC-Mobile via Paxsenix API"
+	}
+	if source == "" {
+		builder.WriteString(fmt.Sprintf("[by:%s]\n", credit))
+	} else {
+		builder.WriteString(
+			fmt.Sprintf("[by:%s %s%s)]\n", credit, lrcSourceMarker, source),
+		)
+	}
 	builder.WriteString("\n")
 
 	if lyrics.SyncType == "LINE_SYNCED" {

@@ -1818,9 +1818,13 @@ func GetLyricsLRCWithSource(spotifyID, trackName, artistName string, filePath st
 	if filePath != "" {
 		lyrics, err := ExtractLyrics(filePath)
 		if err == nil && lyrics != "" {
+			source := extractLyricsSourceFromLRC(lyrics)
+			if source == "" {
+				source = "Embedded"
+			}
 			result := map[string]interface{}{
 				"lyrics":       lyrics,
-				"source":       "Embedded",
+				"source":       source,
 				"sync_type":    "EMBEDDED",
 				"instrumental": false,
 			}
