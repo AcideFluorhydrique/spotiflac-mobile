@@ -257,6 +257,15 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
 
+      - name: Normalize ffmpeg plugin shell scripts (strip CRLF)
+        run: |
+          find "$HOME/.pub-cache/hosted" -path "*ffmpeg_kit_flutter_new_full*/scripts/*.sh" -type f -print0 |
+            while IFS= read -r -d '' f; do
+              perl -pi -e 's/\r$//' "$f"
+              chmod +x "$f"
+              echo "Normalized line endings: $f"
+            done
+
       - name: Generate app icons
         run: dart run flutter_launcher_icons
 
