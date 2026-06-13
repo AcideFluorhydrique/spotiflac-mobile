@@ -25,6 +25,7 @@ import 'package:spotiflac_android/utils/mime_utils.dart';
 import 'package:spotiflac_android/utils/image_cache_utils.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 import 'package:spotiflac_android/utils/int_utils.dart';
+import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 import 'package:spotiflac_android/widgets/audio_analysis_widget.dart';
 import 'package:spotiflac_android/widgets/cached_cover_image.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
@@ -725,8 +726,24 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   String get _coverHeroTag =>
       widget.coverHeroTag ??
       (_isLocalItem ? 'cover_lib_$_itemId' : 'cover_$_itemId');
-  String? get _coverUrl =>
-      _isLocalItem ? null : normalizeRemoteHttpUrl(_downloadItem!.coverUrl);
+  String? get _coverUrl => _isLocalItem
+      ? null
+      : _highResCoverUrl(normalizeRemoteHttpUrl(_downloadItem!.coverUrl));
+
+  String? _highResCoverUrl(String? url) {
+    if (url == null) return null;
+    if (url.contains('ab67616d00001e02')) {
+      return url.replaceAll('ab67616d00001e02', 'ab67616d0000b273');
+    }
+    final deezerRegex = RegExp(r'/(\d+)x(\d+)-(\d+)-(\d+)-(\d+)-(\d+)\.jpg$');
+    if (url.contains('cdn-images.dzcdn.net') && deezerRegex.hasMatch(url)) {
+      return url.replaceAllMapped(
+        deezerRegex,
+        (m) => '/1000x1000-${m[3]}-${m[4]}-${m[5]}-${m[6]}.jpg',
+      );
+    }
+    return url;
+  }
   String? get _localCoverPath =>
       _isLocalItem ? _localLibraryItem!.coverPath : null;
   String? get _spotifyId => _isLocalItem ? null : _downloadItem!.spotifyId;
@@ -1066,6 +1083,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final expandedHeight = _calculateExpandedHeight(context);
+    final bottomInset = context.navBarBottomInset;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -1144,6 +1162,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
             SliverToBoxAdapter(
               child: _buildAnimatedTrackContent(context, ref, colorScheme),
             ),
+            SliverToBoxAdapter(child: SizedBox(height: bottomInset)),
           ],
         ),
       ),
